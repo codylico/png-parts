@@ -24,10 +24,28 @@ Right now, this repository is empty. The goals of this project include:
 
 ## Build and Installation
 
-This project will use the CMake build system, for easier cross-platform
+This project uses the CMake build system, for easier cross-platform
 development. CMake can be found at the following URL:
 
 [https://cmake.org/download/](https://cmake.org/download/)
+
+To use CMake with this project, first make a diretory to hold the build results.
+Then run CMake in the directory with a path to the source code.
+On UNIX, the commands would look like the following:
+```
+mkdir build
+cd build
+cmake ../png-parts/src
+```
+
+Running CMake should create a build project, which then can be processed using other 
+tools. Usually, the tool would be Makefile or a IDE project.
+For Makefiles, use the following command to build the project:
+```
+make
+```
+For IDE projects, the IDE must be installed and ready to use. Open the project
+within the IDE.
 
 ## License
 
