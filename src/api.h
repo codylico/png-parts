@@ -14,14 +14,14 @@
 /*
  * export variable
  */
-#ifndef pngparts_api
-#define pngparts_api
+#ifndef PNGPARTS_API
+#define PNGPARTS_API
 #endif
 
 /*
  * API information as an integer
  */
-pngparts_api
+PNGPARTS_API
 int pngparts_api_info(void);
 
 #endif
