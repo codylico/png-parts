@@ -11,5 +11,9 @@
 #include "api.h"
 
 int pngparts_api_info(void){
+#ifdef PNGPARTS_EXPORTS
   return 0;
+#else
+  return -1;
+#endif /*PNGPARTS_EXPORTS*/
 }

@@ -15,8 +15,16 @@
  * export variable
  */
 #ifndef PNGPARTS_API
-#define PNGPARTS_API
-#endif
+#  ifdef _WIN32
+#    ifdef PNGPARTS_EXPORTS
+#      define PNGPARTS_API __declspec(dllexport)
+#    else
+#      define PNGPARTS_API __declspec(dllimport)
+#    endif /*PNGPARTS_EXPORTS*/
+#  else
+#    define PNGPARTS_API
+#  endif /*_WIN32*/
+#endif /*PNGPARTS_API*/
 
 /*
  * API information as an integer
@@ -24,4 +32,4 @@
 PNGPARTS_API
 int pngparts_api_info(void);
 
-#endif
+#endif /*__PNG_PARTS_API_H__*/
