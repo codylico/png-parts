@@ -8,4 +8,8 @@ set(pngparts_src
   api.c api.h)
 
 add_library(pngparts ${pngparts_src})
-target_compile_definitions(pngparts PRIVATE "PNGPARTS_EXPORTS")
+if (BUILD_SHARED_LIBS)
+  if (WIN32)
+    target_compile_definitions(pngparts PUBLIC "PNGPARTS_API_SHARED")
+  endif(WIN32)
+endif(BUILD_SHARED_LIBS)
