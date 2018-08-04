@@ -5,7 +5,8 @@ project(pngparts)
 option(BUILD_SHARED_LIBS "Build shared libraries")
 
 set(pngparts_src
-  api.c api.h)
+  api.c api.h
+  z.c z.h)
 
 add_library(pngparts ${pngparts_src})
 if (BUILD_SHARED_LIBS)
