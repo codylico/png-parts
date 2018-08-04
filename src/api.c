@@ -11,5 +11,9 @@
 #include "api.h"
 
 int pngparts_api_info(void){
-  return 0;
+  int out = 0;
+#ifdef PNGPARTS_API_SHARED
+  out |= PNGPARTS_API_EXPORTS;
+#endif /*PNGPARTS_API_SHARED*/
+  return out;
 }
