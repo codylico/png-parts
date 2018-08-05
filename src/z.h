@@ -48,6 +48,21 @@ int pngparts_z_header_check(struct pngparts_z_header hdr);
 PNGPARTS_API
 struct pngparts_z_header pngparts_z_header_new(void);
 
+/*
+ * Put the header into a byte stream.
+ * - buf buffer of bytes to which to write (2 bytes)
+ * - hdr header to write
+ */
+PNGPARTS_API
+void pngparts_z_header_put(void* buf, struct pngparts_z_header  hdr);
+/*
+ * Get the header from a byte stream.
+ * - buf the buffer to read
+ * @return the header
+ */
+PNGPARTS_API
+struct pngparts_z_header pngparts_z_header_get(void const* buf);
+
 #ifdef __cplusplus
 };
 #endif /*__cplusplus*/
