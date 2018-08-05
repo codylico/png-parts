@@ -40,7 +40,7 @@ struct pngparts_z_header {
  *   check value, the header may be damaged.
  */
 PNGPARTS_API
-int pngparts_z_compute_check(struct pngparts_z_header hdr);
+int pngparts_z_header_check(struct pngparts_z_header hdr);
 /*
  * Make a default header.
  * @return the new header

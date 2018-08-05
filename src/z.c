@@ -1,7 +1,7 @@
 
 #include "z.h"
 
-int pngparts_z_compute_check(struct pngparts_z_header hdr){
+int pngparts_z_header_check(struct pngparts_z_header hdr){
   int holding = 0;
   holding |= (hdr.fdict&1)<<5;
   holding |= (hdr.flevel&3)<<6;
