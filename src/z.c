@@ -37,3 +37,23 @@ struct pngparts_z_header pngparts_z_header_get(void const* buf){
   hdr.flevel = ((ptr[1]>>6)&3);
   return hdr;
 }
+
+struct pngparts_z_adler32 pngparts_z_adler32_new(void){
+  struct pngparts_z_adler32 out;
+  out.s1 = 1;
+  out.s2 = 0;
+  return out;
+}
+unsigned long int pngparts_z_adler32_tol(struct pngparts_z_adler32 chk){
+  return chk.s1 | ((chk.s2)<<16);
+}
+struct pngparts_z_adler32 pngparts_z_adler32_accum
+  (struct pngparts_z_adler32 chk, int ch)
+{
+  unsigned long int xs1;
+  struct pngparts_z_adler32 out;
+  xs1 = (chk.s1+ch)%65521;
+  out.s1 = xs1;
+  out.s2 = (chk.s2+xs1)%65521;
+  return out;
+}

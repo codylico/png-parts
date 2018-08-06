@@ -32,6 +32,15 @@ struct pngparts_z_header {
   /* compression information */
   short int cinfo;
 };
+/*
+ * Accumulator for Adlr32 checksums
+ */
+struct pngparts_z_adler32 {
+  /* Flat accumulator */
+  unsigned long int s1;
+  /* Compound accumulator */
+  unsigned long int s2;
+};
 
 /*
  * Compute a header check value.
@@ -62,6 +71,30 @@ void pngparts_z_header_put(void* buf, struct pngparts_z_header  hdr);
  */
 PNGPARTS_API
 struct pngparts_z_header pngparts_z_header_get(void const* buf);
+
+/*
+ * Create a new Adler32 checksum.
+ * @return the new checksum
+ */
+PNGPARTS_API
+struct pngparts_z_adler32 pngparts_z_adler32_new(void);
+/*
+ * Convert an accumulator to a single value.
+ * - chk the accumulator
+ * @return the single 32-bit checksum
+ */
+PNGPARTS_API
+unsigned long int pngparts_z_adler32_tol(struct pngparts_z_adler32 chk);
+/*
+ * Accumulate a single byte.
+ * - chk the current checksum accumulator state
+ * - ch the character to accumulate
+ * @return the new accumulator state
+ */
+PNGPARTS_API
+struct pngparts_z_adler32 pngparts_z_adler32_accum
+  (struct pngparts_z_adler32 chk, int ch);
+
 
 #ifdef __cplusplus
 };
