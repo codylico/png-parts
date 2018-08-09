@@ -47,15 +47,15 @@ void pngparts_zread_free(struct pngparts_z *prs){
 int pngparts_zread_parse(struct pngparts_z *prs, int mode){
   int result = prs->last_result;
   int state = prs->state;
+  int shortpos = prs->shortpos;
   int sticky_finish = ((mode&PNGPARTS_ZREAD_FINISH) != 0);
   while (result == 0 && (sticky_finish || prs->inpos < prs->insize)){
     /* states:
      * 0  - start
      * 1  - dictionary checksum
      * 2  - data
-     * 3  - data finish
-     * 4  - adler32 checksum
-     * 5  - done
+     * 3  - adler32 checksum
+     * 4  - done
      */
     int ch;
     if (prs->flags_tf&2) {
@@ -70,31 +70,35 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
     switch (state){
     case 0:
       {
-        if (ch >= 0 && prs->shortpos < 2){
-          prs->shortbuf[prs->shortpos] = (unsigned char)ch;
-          prs->shortpos += 1;
+        if (ch >= 0 && shortpos < 2){
+          prs->shortbuf[shortpos] = (unsigned char)ch;
+          shortpos += 1;
         }
-        if (prs->shortpos >= 2){
+        if (shortpos >= 2){
           prs->header = pngparts_z_header_get(prs->shortbuf);
           if (prs->header.fcheck%31 != pngparts_z_header_check(prs->header)%31){
             result = PNGPARTS_Z_BAD_CHECK;
             break;
+          } else if (prs->start_cb == NULL
+          ||  (*prs->start_cb)(prs,prs->header,prs->cb_data) != PNGPARTS_Z_OK)
+          {
+            result = PNGPARTS_Z_UNSUPPORTED;
           } else if (prs->header.fdict){
             state = 1;
-            prs->shortpos = 0;
+            shortpos = 0;
           } else {
             state = 2;
-            prs->shortpos = 0;
+            shortpos = 0;
           }
         }
       }break;
     case 1: /*dictionary id */
       {
-        if (ch >= 0 && prs->shortpos < 4){
-          prs->shortbuf[prs->shortpos] = (unsigned char)ch;
-          prs->shortpos += 1;
+        if (ch >= 0 && shortpos < 4){
+          prs->shortbuf[shortpos] = (unsigned char)ch;
+          shortpos += 1;
         }
-        if (prs->shortpos >= 4){
+        if (shortpos >= 4){
           /* check the dictionary */
           unsigned long int dict_chk
             = pngparts_zread_get32(prs->shortbuf);
@@ -105,15 +109,43 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
             result = PNGPARTS_Z_NEED_DICT;
             break;
           } else {
-            prs->shortpos = 0;
-            prs->state = 2;
+            shortpos = 0;
+            state = 2;
           }
         }
       }break;
     case 2: /*data processing callback */
-    case 3: /*data toss */
       {
-        result = PNGPARTS_Z_UNSUPPORTED;
+        result = (*prs->one_cb)(prs,ch,prs->cb_data);
+        if (result == PNGPARTS_Z_DONE){
+          state = 3;
+          shortpos = 0;
+        }
+      }break;
+    case 3: /* checksum */
+      {
+        if (ch >= 0 && shortpos < 4){
+          prs->shortbuf[shortpos] = (unsigned char)ch;
+          shortpos += 1;
+        }
+        if (shortpos >= 4){
+          /* check the sum */
+          unsigned long int stream_chk
+            = pngparts_zread_get32(prs->shortbuf);
+          if (pngparts_z_adler32_tol(prs->check) != stream_chk){
+            result = PNGPARTS_Z_BAD_SUM;
+          } else {
+            shortpos = 0;
+            result = (*prs->finish_cb)(prs,prs->cb_data);
+            if (result >= PNGPARTS_Z_OK)
+              result = PNGPARTS_Z_DONE;
+            state = 4;
+          }
+        }
+      }break;
+    case 4:
+      {
+        result = PNGPARTS_Z_DONE;
       }break;
     default:
       result = PNGPARTS_Z_BAD_STATE;
@@ -127,5 +159,6 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
   }
   prs->last_result = result;
   prs->state = (short)state;
+  prs->shortpos = (short)shortpos;
   return result;
 }

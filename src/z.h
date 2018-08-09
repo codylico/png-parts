@@ -50,6 +50,8 @@ struct pngparts_z_adler32 {
  * Errors
  */
 enum pngparts_z_error {
+  /* bad Adler32 checksum */
+  PNGPARTS_Z_BAD_SUM = -9,
   /* unsupported stream compression algorithm */
   PNGPARTS_Z_UNSUPPORTED = -8,
   /* output buffer overflow */
@@ -84,7 +86,7 @@ typedef int (*pngparts_z_start_cb)
 /*
  * Byte callback.
  * - reader the reader
- * - ch byte
+ * - ch byte, or -1 for repeat bytes
  * - data user data
  * @return zero, or OVERFLOW if the output buffer is too full,
  *   or DONE at the end of the bit stream
