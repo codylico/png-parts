@@ -32,6 +32,7 @@ struct pngparts_z_header {
   /* compression information */
   short int cinfo;
 };
+
 /*
  * Accumulator for Adlr32 checksums
  */
@@ -42,6 +43,39 @@ struct pngparts_z_adler32 {
   unsigned long int s2;
 };
 
+/*
+ * Errors
+ */
+enum pngparts_z_error {
+  /* unsupported stream compression algorithm */
+  PNGPARTS_Z_UNSUPPORTED = -8,
+  /* output buffer overflow */
+  PNGPARTS_Z_OVERFLOW = -7,
+  /* i/o error */
+  PNGPARTS_Z_IO_ERROR = -6,
+  /* parameter not fit the function */
+  PNGPARTS_Z_BAD_PARAM = -5,
+  /* dictionary requested */
+  PNGPARTS_Z_NEED_DICT = -4,
+  /* bad check value */
+  PNGPARTS_Z_BAD_CHECK = -3,
+  /* state machine broke */
+  PNGPARTS_Z_BAD_STATE = -2,
+  /* premature end of file */
+  PNGPARTS_Z_EOF = -1,
+  /* all is good */
+  PNGPARTS_Z_OK = 0,
+  /* the stream is done; quit pushing data */
+  PNGPARTS_Z_DONE = 1
+};
+
+/*
+ * Error message.
+ * - result error value
+ * @return corresponding error message
+ */
+PNGPARTS_API
+char const* pngparts_z_strerror(int result);
 /*
  * Compute a header check value.
  * - hdr the header to check
