@@ -17,6 +17,9 @@
 extern "C" {
 #endif /*__cplusplus*/
 
+
+struct pngparts_z;
+
 /*
  * Header structure
  */
@@ -67,6 +70,77 @@ enum pngparts_z_error {
   PNGPARTS_Z_OK = 0,
   /* the stream is done; quit pushing data */
   PNGPARTS_Z_DONE = 1
+};
+
+/*
+ * Start callback.
+ * - base the base
+ * - hdr header information
+ * @return OK if the callback supports the stream,
+ *   or UNSUPPORTED otherwise
+ */
+typedef int (*pngparts_z_start_cb)
+  (struct pngparts_z* base, struct pngparts_z_header hdr, void* data);
+/*
+ * Byte callback.
+ * - reader the reader
+ * - ch byte
+ * - data user data
+ * @return zero, or OVERFLOW if the output buffer is too full,
+ *   or DONE at the end of the bit stream
+ */
+typedef int (*pngparts_z_one_cb)
+  (struct pngparts_z* base, int ch, void *data);
+/*
+ * Finish callback.
+ * - reader the reader
+ * - data user data
+ * @return zero, or EOF if the callback expects more data
+ */
+typedef int (*pngparts_z_finish_cb)(struct pngparts_z* base, void* data);
+/*
+ * Base structure for zlib processors.
+ */
+struct pngparts_z {
+  /* callback data */
+  void* cb_data;
+  /* start callback */
+  pngparts_z_start_cb start_cb;
+  /* bit callback */
+  pngparts_z_one_cb one_cb;
+  /* finish callback */
+  pngparts_z_finish_cb finish_cb;
+  /* reader state */
+  short state;
+  /* the stream header */
+  struct pngparts_z_header header;
+  /* short position */
+  unsigned short shortpos;
+  /* buffer for short byte chunks */
+  unsigned char shortbuf[15];
+  /*
+   * 1: if a dictionary has been set
+   * 2: skip reading a byte
+   */
+  unsigned char flags_tf;
+  /* dictionary checksum */
+  unsigned long int dict_check;
+  /* the current checksum */
+  struct pngparts_z_adler32 check;
+  /* the input buffer for deflated data */
+  unsigned char* inbuf;
+  /* the output buffer for inflated data */
+  unsigned char* outbuf;
+  /* the size of the input buffer in bytes */
+  int insize;
+  /* the size of the output buffer in bytes */
+  int outsize;
+  /* the position of bytes read from the buffer */
+  int inpos;
+  /* the position of bytes written to the buffer */
+  int outpos;
+  /* next error found while reading */
+  int last_result;
 };
 
 /*
@@ -129,6 +203,51 @@ PNGPARTS_API
 struct pngparts_z_adler32 pngparts_z_adler32_accum
   (struct pngparts_z_adler32 chk, int ch);
 
+/*
+ * Setup an input buffer for next use.
+ * - reader reader
+ * - inbuf input buffer
+ * - insize amount of data to input
+ */
+PNGPARTS_API
+void pngparts_z_setup_input
+  (struct pngparts_z *reader, void* inbuf, int insize);
+/*
+ * Setup an output buffer for next use.
+ * - reader reader
+ * - outbuf output buffer
+ * - outsize amount of space available for output
+ */
+PNGPARTS_API
+void pngparts_z_setup_output
+  (struct pngparts_z *reader, void* outbuf, int outsize);
+/*
+ * Check if the reader has used up all the latest input.
+ * - reader reader
+ * @return nonzero if the input is used up
+ */
+PNGPARTS_API
+int pngparts_z_input_done(struct pngparts_z const* reader);
+/*
+ * Check how much output bytes wait for you.
+ * - reader reader
+ * @return byte count for the output bytes
+ */
+PNGPARTS_API
+int pngparts_z_output_left(struct pngparts_z const* reader);
+/*
+ * Set the compression callbacks.
+ * - base the reader
+ * - cb_data static user data
+ * - start_cb constructor for callback data
+ * - bit_cb bit fiddler
+ * - finish_cb destructor for callback data
+ */
+PNGPARTS_API
+void pngparts_z_set_cb
+  ( struct pngparts_z *base, void *cb_data,
+    pngparts_z_start_cb start_cb, pngparts_z_one_cb one_cb,
+    pngparts_z_finish_cb finish_cb);
 
 #ifdef __cplusplus
 };

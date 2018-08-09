@@ -81,3 +81,37 @@ struct pngparts_z_adler32 pngparts_z_adler32_accum
   out.s2 = (chk.s2+xs1)%65521;
   return out;
 }
+
+void pngparts_z_setup_input
+  (struct pngparts_z *reader, void* inbuf, int insize)
+{
+  reader->inbuf = (unsigned char*)inbuf;
+  reader->inpos = 0;
+  reader->insize = insize;
+  return;
+}
+int pngparts_z_input_done(struct pngparts_z const* reader){
+  return reader->inpos >= reader->insize;
+}
+void pngparts_z_setup_output
+  (struct pngparts_z *reader, void* outbuf, int outsize)
+{
+  reader->outbuf = (unsigned char*)outbuf;
+  reader->outpos = 0;
+  reader->outsize = outsize;
+  return;
+}
+int pngparts_z_output_left(struct pngparts_z const* reader){
+  return reader->outpos;
+}
+void pngparts_z_set_cb
+  ( struct pngparts_z *reader, void* cb_data,
+    pngparts_z_start_cb start_cb, pngparts_z_one_cb one_cb,
+    pngparts_z_finish_cb finish_cb)
+{
+  reader->cb_data = cb_data;
+  reader->start_cb = start_cb;
+  reader->one_cb = one_cb;
+  reader->finish_cb = finish_cb;
+  return;
+}
