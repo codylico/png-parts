@@ -76,30 +76,29 @@ enum pngparts_z_error {
 
 /*
  * Start callback.
- * - base the base
  * - hdr header information
  * @return OK if the callback supports the stream,
  *   or UNSUPPORTED otherwise
  */
 typedef int (*pngparts_z_start_cb)
-  (struct pngparts_z* base, struct pngparts_z_header hdr, void* data);
+  (struct pngparts_z_header hdr, void* data);
 /*
  * Byte callback.
- * - reader the reader
  * - ch byte, or -1 for repeat bytes
  * - data user data
+ * - put_cb callback for putting output bytes
+ * - put_data data to pass to put callback
  * @return zero, or OVERFLOW if the output buffer is too full,
  *   or DONE at the end of the bit stream
  */
 typedef int (*pngparts_z_one_cb)
-  (struct pngparts_z* base, int ch, void *data);
+  (int ch, void *data, int(*put_cb)(int,void*), void* put_data);
 /*
  * Finish callback.
- * - reader the reader
  * - data user data
  * @return zero, or EOF if the callback expects more data
  */
-typedef int (*pngparts_z_finish_cb)(struct pngparts_z* base, void* data);
+typedef int (*pngparts_z_finish_cb)(void* data);
 /*
  * Base structure for zlib processors.
  */
