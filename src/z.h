@@ -76,27 +76,38 @@ enum pngparts_z_error {
 
 /*
  * Start callback.
- * - hdr header information
- * @return OK if the callback supports the stream,
- *   or UNSUPPORTED otherwise
+ * - fdict dictionary
+ * - flevel compression level
+ * - cm compression method
+ * - cinfo compression information
+ * @return 0 if the callback supports the stream,
+ *   or -1 otherwise
  */
 typedef int (*pngparts_z_start_cb)
-  (struct pngparts_z_header hdr, void* data);
+  ( short int fdict, short int flevel, short int cm, short int cinfo,
+    void* data);
+/*
+ * Dictionary byte callback.
+ * - ch byte, or -1 for repeat bytes
+ * - data user data
+ * @return zero, or -1 if preset dictionaries are not supported
+ */
+typedef int (*pngparts_z_dict_cb)(int ch, void* data);
 /*
  * Byte callback.
  * - ch byte, or -1 for repeat bytes
  * - data user data
  * - put_cb callback for putting output bytes
  * - put_data data to pass to put callback
- * @return zero, or OVERFLOW if the output buffer is too full,
- *   or DONE at the end of the bit stream
+ * @return zero, or 2 if the output buffer is too full,
+ *   or 1 at the end of the bit stream; return negative on error
  */
 typedef int (*pngparts_z_one_cb)
   (int ch, void *data, int(*put_cb)(int,void*), void* put_data);
 /*
  * Finish callback.
  * - data user data
- * @return zero, or EOF if the callback expects more data
+ * @return zero, or -1 if the callback expected more data
  */
 typedef int (*pngparts_z_finish_cb)(void* data);
 /*

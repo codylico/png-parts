@@ -80,7 +80,8 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
             result = PNGPARTS_Z_BAD_CHECK;
             break;
           } else if (prs->start_cb == NULL
-          ||  (*prs->start_cb)(prs->header,prs->cb_data) != PNGPARTS_Z_OK)
+          ||  (*prs->start_cb)(prs->header.fdict, prs->header.flevel,
+                prs->header.cm, prs->header.cinfo,prs->cb_data) != 0)
           {
             result = PNGPARTS_Z_UNSUPPORTED;
           } else if (prs->header.fdict){
@@ -117,10 +118,14 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
     case 2: /*data processing callback */
       {
         result = (*prs->one_cb)(ch,prs->cb_data,NULL,NULL);
-        if (result == PNGPARTS_Z_DONE){
+        if (result == 1){
           state = 3;
           shortpos = 0;
-        }
+        } else if (result == 2){
+          result = PNGPARTS_Z_OVERFLOW;
+        } else if (result < 0){
+          result = PNGPARTS_Z_BAD_STATE;
+        } else result = 0;
       }break;
     case 3: /* checksum */
       {
@@ -137,7 +142,7 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
           } else {
             shortpos = 0;
             result = (*prs->finish_cb)(prs->cb_data);
-            if (result >= PNGPARTS_Z_OK)
+            if (result == 0)
               result = PNGPARTS_Z_DONE;
             state = 4;
           }
