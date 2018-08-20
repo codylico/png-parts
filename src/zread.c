@@ -77,13 +77,13 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
         if (shortpos >= 2){
           prs->header = pngparts_z_header_get(prs->shortbuf);
           if (prs->header.fcheck%31 != pngparts_z_header_check(prs->header)%31){
-            result = PNGPARTS_Z_BAD_CHECK;
+            result = PNGPARTS_API_BAD_CHECK;
             break;
           } else if (prs->start_cb == NULL
           ||  (*prs->start_cb)(prs->header.fdict, prs->header.flevel,
                 prs->header.cm, prs->header.cinfo,prs->cb_data) != 0)
           {
-            result = PNGPARTS_Z_UNSUPPORTED;
+            result = PNGPARTS_API_UNSUPPORTED;
           } else if (prs->header.fdict){
             state = 1;
             shortpos = 0;
@@ -104,10 +104,10 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
           unsigned long int dict_chk
             = pngparts_zread_get32(prs->shortbuf);
           if ((prs->flags_tf&1) == 0){
-            result = PNGPARTS_Z_NEED_DICT;
+            result = PNGPARTS_API_NEED_DICT;
             break;
           } else if (prs->dict_check != dict_chk){
-            result = PNGPARTS_Z_NEED_DICT;
+            result = PNGPARTS_API_NEED_DICT;
             break;
           } else {
             shortpos = 0;
@@ -118,14 +118,12 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
     case 2: /*data processing callback */
       {
         result = (*prs->one_cb)(ch,prs->cb_data,NULL,NULL);
-        if (result == 1){
+        if (result == PNGPARTS_API_DONE){
           state = 3;
           shortpos = 0;
-        } else if (result == 2){
-          result = PNGPARTS_Z_OVERFLOW;
-        } else if (result < 0){
-          result = PNGPARTS_Z_BAD_STATE;
-        } else result = 0;
+        } else if (result > 0){
+          result = 0;
+        }
       }break;
     case 3: /* checksum */
       {
@@ -138,22 +136,22 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
           unsigned long int stream_chk
             = pngparts_zread_get32(prs->shortbuf);
           if (pngparts_z_adler32_tol(prs->check) != stream_chk){
-            result = PNGPARTS_Z_BAD_SUM;
+            result = PNGPARTS_API_BAD_SUM;
           } else {
             shortpos = 0;
             result = (*prs->finish_cb)(prs->cb_data);
             if (result == 0)
-              result = PNGPARTS_Z_DONE;
+              result = PNGPARTS_API_DONE;
             state = 4;
           }
         }
       }break;
     case 4:
       {
-        result = PNGPARTS_Z_DONE;
+        result = PNGPARTS_API_DONE;
       }break;
     default:
-      result = PNGPARTS_Z_BAD_STATE;
+      result = PNGPARTS_API_BAD_STATE;
       break;
     }
     if (result != 0){

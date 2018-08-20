@@ -96,7 +96,7 @@ int main(int argc, char**argv){
           size_t writeresult =
             fwrite(outbuf,sizeof(unsigned char),writelen,to_write);
           if (writeresult != writelen){
-            result = PNGPARTS_Z_IO_ERROR;
+            result = PNGPARTS_API_IO_ERROR;
             break;
           }
         }
@@ -111,7 +111,8 @@ int main(int argc, char**argv){
   if (to_write != stdout) fclose(to_write);
   if (to_read != stdin) fclose(to_read);
   if (result){
-    fprintf(stderr,"Result code %i: %s\n",result,pngparts_z_strerror(result));
+    fprintf(stderr,"Result code %i: %s\n",
+      result,pngparts_api_strerror(result));
   }
   return result;
 }

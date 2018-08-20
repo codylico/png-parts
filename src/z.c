@@ -9,22 +9,6 @@
  * zlib main header
  */
 #include "z.h"
-
-char const* pngparts_z_strerror(int result){
-  switch (result){
-  case PNGPARTS_Z_UNSUPPORTED: return "unsupported compression method";
-  case PNGPARTS_Z_OVERFLOW: return "output overflow";
-  case PNGPARTS_Z_IO_ERROR: return "input/output error";
-  case PNGPARTS_Z_BAD_PARAM: return "bad parameter";
-  case PNGPARTS_Z_NEED_DICT: return "dictionary requested";
-  case PNGPARTS_Z_BAD_CHECK: return "bad header check";
-  case PNGPARTS_Z_BAD_STATE: return "bad state machine";
-  case PNGPARTS_Z_EOF: return "stream too quick to finish";
-  case PNGPARTS_Z_OK: return "all is good";
-  case PNGPARTS_Z_DONE: return "the stream is done";
-  default: return "?";
-  }
-}
 int pngparts_z_header_check(struct pngparts_z_header hdr){
   int holding = 0;
   holding |= (hdr.fdict&1)<<5;

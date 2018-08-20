@@ -37,11 +37,47 @@ enum pngparts_api_flag {
   /* whether the library uses explicit exporting */
   PNGPARTS_API_EXPORTS = 1
 };
+
+/*
+ * Errors
+ */
+enum pngparts_api_error {
+  /* bad Adler32 checksum */
+  PNGPARTS_API_BAD_SUM = -9,
+  /* unsupported stream compression algorithm */
+  PNGPARTS_API_UNSUPPORTED = -8,
+  /* output buffer overflow */
+  PNGPARTS_API_OVERFLOW = -7,
+  /* i/o error */
+  PNGPARTS_API_IO_ERROR = -6,
+  /* parameter not fit the function */
+  PNGPARTS_API_BAD_PARAM = -5,
+  /* dictionary requested */
+  PNGPARTS_API_NEED_DICT = -4,
+  /* bad check value */
+  PNGPARTS_API_BAD_CHECK = -3,
+  /* state machine broke */
+  PNGPARTS_API_BAD_STATE = -2,
+  /* premature end of file */
+  PNGPARTS_API_EOF = -1,
+  /* all is good */
+  PNGPARTS_API_OK = 0,
+  /* the stream is done; quit pushing data */
+  PNGPARTS_API_DONE = 1
+};
+
 /*
  * API information as an integer
  */
 PNGPARTS_API
 int pngparts_api_info(void);
+/*
+ * Error message.
+ * - result error value
+ * @return corresponding error message
+ */
+PNGPARTS_API
+char const* pngparts_api_strerror(int result);
 
 #ifdef __cplusplus
 };

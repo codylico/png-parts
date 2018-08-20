@@ -47,41 +47,13 @@ struct pngparts_z_adler32 {
 };
 
 /*
- * Errors
- */
-enum pngparts_z_error {
-  /* bad Adler32 checksum */
-  PNGPARTS_Z_BAD_SUM = -9,
-  /* unsupported stream compression algorithm */
-  PNGPARTS_Z_UNSUPPORTED = -8,
-  /* output buffer overflow */
-  PNGPARTS_Z_OVERFLOW = -7,
-  /* i/o error */
-  PNGPARTS_Z_IO_ERROR = -6,
-  /* parameter not fit the function */
-  PNGPARTS_Z_BAD_PARAM = -5,
-  /* dictionary requested */
-  PNGPARTS_Z_NEED_DICT = -4,
-  /* bad check value */
-  PNGPARTS_Z_BAD_CHECK = -3,
-  /* state machine broke */
-  PNGPARTS_Z_BAD_STATE = -2,
-  /* premature end of file */
-  PNGPARTS_Z_EOF = -1,
-  /* all is good */
-  PNGPARTS_Z_OK = 0,
-  /* the stream is done; quit pushing data */
-  PNGPARTS_Z_DONE = 1
-};
-
-/*
  * Start callback.
  * - fdict dictionary
  * - flevel compression level
  * - cm compression method
  * - cinfo compression information
- * @return 0 if the callback supports the stream,
- *   or -1 otherwise
+ * @return OK if the callback supports the stream,
+ *   or UNSUPPORTED otherwise
  */
 typedef int (*pngparts_z_start_cb)
   ( short int fdict, short int flevel, short int cm, short int cinfo,
@@ -90,26 +62,28 @@ typedef int (*pngparts_z_start_cb)
  * Dictionary byte callback.
  * - ch byte, or -1 for repeat bytes
  * - data user data
- * @return zero, or -1 if preset dictionaries are not supported
+ * @return OK, or UNSUPPORTED if preset dictionaries are not supported
  */
 typedef int (*pngparts_z_dict_cb)(int ch, void* data);
 /*
  * Byte callback.
  * - ch byte, or -1 for repeat bytes
  * - data user data
- * - put_cb callback for putting output bytes
+ * - put_cb callback for putting output bytes (to return 0 on
+ *     success or OVERFLOW on overflow)
  * - put_data data to pass to put callback
- * @return zero, or 2 if the output buffer is too full,
- *   or 1 at the end of the bit stream; return negative on error
+ * @return OK, or OVERFLOW if the output buffer is too full,
+ *   or DONE at the end of the bit stream; return other negative on error
  */
 typedef int (*pngparts_z_one_cb)
   (int ch, void *data, int(*put_cb)(int,void*), void* put_data);
 /*
  * Finish callback.
  * - data user data
- * @return zero, or -1 if the callback expected more data
+ * @return zero, or EOF if the callback expected more data
  */
 typedef int (*pngparts_z_finish_cb)(void* data);
+
 /*
  * Base structure for zlib processors.
  */
