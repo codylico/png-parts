@@ -111,6 +111,18 @@ int main(int argc, char**argv){
     }
     if (result < 0) break;
     result = pngparts_zread_parse(&reader,PNGPARTS_ZREAD_FINISH);
+    do {
+      if (result < 0) break;
+      size_t writelen = pngparts_z_output_left(&reader);
+      if (writelen > 0){
+        size_t writeresult =
+          fwrite(outbuf,sizeof(unsigned char),writelen,to_write);
+        if (writeresult != writelen){
+          result = PNGPARTS_API_IO_ERROR;
+          break;
+        }
+      }
+    }while (result == PNGPARTS_API_OVERFLOW);
   } while (0);
   pngparts_inflate_free(&inflater);
   pngparts_zread_free(&reader);
