@@ -154,7 +154,7 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
       result = PNGPARTS_API_BAD_STATE;
       break;
     }
-    if (result != 0){
+    if (result != PNGPARTS_API_OK){
       break;
     } else if (ch >= 0){
       prs->inpos += 1;
