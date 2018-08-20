@@ -90,11 +90,12 @@ int pngparts_z_output_left(struct pngparts_z const* reader){
 }
 void pngparts_z_set_cb
   ( struct pngparts_z *reader, void* cb_data,
-    pngparts_z_start_cb start_cb, pngparts_z_one_cb one_cb,
-    pngparts_z_finish_cb finish_cb)
+    pngparts_z_start_cb start_cb, pngparts_z_dict_cb dict_cb,
+    pngparts_z_one_cb one_cb, pngparts_z_finish_cb finish_cb)
 {
   reader->cb_data = cb_data;
   reader->start_cb = start_cb;
+  reader->dict_cb = dict_cb;
   reader->one_cb = one_cb;
   reader->finish_cb = finish_cb;
   return;

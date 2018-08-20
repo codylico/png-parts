@@ -92,6 +92,8 @@ struct pngparts_z {
   void* cb_data;
   /* start callback */
   pngparts_z_start_cb start_cb;
+  /* dictionary callback */
+  pngparts_z_dict_cb dict_cb;
   /* bit callback */
   pngparts_z_one_cb one_cb;
   /* finish callback */
@@ -232,8 +234,8 @@ int pngparts_z_output_left(struct pngparts_z const* reader);
 PNGPARTS_API
 void pngparts_z_set_cb
   ( struct pngparts_z *base, void *cb_data,
-    pngparts_z_start_cb start_cb, pngparts_z_one_cb one_cb,
-    pngparts_z_finish_cb finish_cb);
+    pngparts_z_start_cb start_cb, pngparts_z_dict_cb dict_cb,
+    pngparts_z_one_cb one_cb, pngparts_z_finish_cb finish_cb);
 
 #ifdef __cplusplus
 };
