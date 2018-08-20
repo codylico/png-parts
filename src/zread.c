@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+static int pngparts_zread_put_cb(int ch, void* prs);
 static unsigned long int pngparts_zread_get32(unsigned char const* );
 
 unsigned long int pngparts_zread_get32(unsigned char const* b){
@@ -117,10 +118,12 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
       }break;
     case 2: /*data processing callback */
       {
-        result = (*prs->one_cb)(ch,prs->cb_data,NULL,NULL);
+        result = (*prs->one_cb)(ch,prs->cb_data,
+              &pngparts_zread_put_cb,&prs);
         if (result == PNGPARTS_API_DONE){
           state = 3;
           shortpos = 0;
+          result = PNGPARTS_API_OK;
         } else if (result > 0){
           result = 0;
         }
@@ -164,4 +167,15 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
   prs->state = (short)state;
   prs->shortpos = (short)shortpos;
   return result;
+}
+int pngparts_zread_put_cb(int ch, void* data){
+  struct pngparts_z* prs = (struct pngparts_z*)data;
+  if (prs->outpos < prs->outsize){
+    unsigned char chc = (unsigned char)(ch&255);
+    prs->outbuf[prs->outpos++] = chc;
+    prs->check = pngparts_z_adler32_accum(prs->check, chc);
+    return PNGPARTS_API_OK;
+  } else {
+    return PNGPARTS_API_OVERFLOW;
+  }
 }

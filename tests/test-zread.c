@@ -10,6 +10,7 @@
  */
 
 #include "../src/zread.h"
+#include "../src/inflate.h"
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
@@ -19,6 +20,7 @@ int main(int argc, char**argv){
   char const* in_fname = NULL, *out_fname = NULL,
     *dict_fname = NULL;
   struct pngparts_z reader;
+  struct pngparts_flate inflater;
   int help_tf = 0;
   int result = 0;
   {
@@ -79,6 +81,10 @@ int main(int argc, char**argv){
   }
   /* parse the zlib stream */
   pngparts_zread_init(&reader);
+  pngparts_inflate_init(&inflater);
+  pngparts_z_set_cb( &reader, &inflater,
+    &pngparts_inflate_start, &pngparts_inflate_dict,
+    &pngparts_inflate_one, &pngparts_inflate_finish);
   do {
     unsigned char inbuf[256];
     unsigned char outbuf[256];
@@ -106,6 +112,7 @@ int main(int argc, char**argv){
     if (result < 0) break;
     result = pngparts_zread_parse(&reader,PNGPARTS_ZREAD_FINISH);
   } while (0);
+  pngparts_inflate_free(&inflater);
   pngparts_zread_free(&reader);
   /* close */
   if (to_write != stdout) fclose(to_write);

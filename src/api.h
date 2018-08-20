@@ -42,6 +42,8 @@ enum pngparts_api_flag {
  * Errors
  */
 enum pngparts_api_error {
+  /* memory loss */
+  PNGPARTS_API_MEMORY = -10,
   /* bad Adler32 checksum */
   PNGPARTS_API_BAD_SUM = -9,
   /* unsupported stream compression algorithm */

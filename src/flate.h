@@ -11,6 +11,8 @@
 #ifndef __PNG_PARTS_FLATE_H__
 #define __PNG_PARTS_FLATE_H__
 
+#include "api.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /*__cplusplus*/
@@ -20,6 +22,12 @@ struct pngparts_flate {
   signed char bitpos;
   /* last input byte */
   unsigned char last_input_byte;
+  /* past bytes read */
+  unsigned char* history_bytes;
+  /* size of history in bytes */
+  unsigned int history_size;
+  /* position in history */
+  unsigned int history_pos;
 };
 
 
