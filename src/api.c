@@ -20,6 +20,8 @@ int pngparts_api_info(void){
 
 char const* pngparts_api_strerror(int result){
   switch (result){
+  case PNGPARTS_API_BAD_BLOCK: return "bad block type";
+  case PNGPARTS_API_CORRUPT_LENGTH: return "direct length corrupted";
   case PNGPARTS_API_MEMORY: return "memory loss";
   case PNGPARTS_API_BAD_SUM: return "bad Adler32 checksum";
   case PNGPARTS_API_UNSUPPORTED: return "unsupported technique";

@@ -22,12 +22,24 @@ struct pngparts_flate {
   signed char bitpos;
   /* last input byte */
   unsigned char last_input_byte;
+  /* state */
+  signed char state;
+  /* size of history of bits */
+  unsigned char bitlength;
+  /* history of previous bits */
+  unsigned int bitline;
   /* past bytes read */
   unsigned char* history_bytes;
   /* size of history in bytes */
   unsigned int history_size;
   /* position in history */
   unsigned int history_pos;
+  /* forward and reverse lengths */
+  unsigned char shortbuf[4];
+  /* short buffer position */
+  unsigned short short_pos;
+  /* direct block length */
+  unsigned int block_length;
 };
 
 

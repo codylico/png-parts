@@ -16,10 +16,10 @@ static int pngparts_zread_put_cb(int ch, void* prs);
 static unsigned long int pngparts_zread_get32(unsigned char const* );
 
 unsigned long int pngparts_zread_get32(unsigned char const* b){
-  return ((b[0]&255)<<24)
-      |  ((b[1]&255)<<16)
-      |  ((b[2]&255)<< 8)
-      |  ((b[3]&255)<< 0);
+  return (((unsigned long int)(b[0]&255))<<24)
+      |  (((unsigned long int)(b[1]&255))<<16)
+      |  (((unsigned long int)(b[2]&255))<< 8)
+      |  (((unsigned long int)(b[3]&255))<< 0);
 }
 
 void pngparts_zread_init(struct pngparts_z *prs){
@@ -50,7 +50,12 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
   int state = prs->state;
   int shortpos = prs->shortpos;
   int sticky_finish = ((mode&PNGPARTS_ZREAD_FINISH) != 0);
-  while (result == 0 && (sticky_finish || prs->inpos < prs->insize)){
+  if (result == PNGPARTS_API_OVERFLOW){
+    if (prs->outpos < prs->outsize)
+      result = PNGPARTS_API_OK;
+  }
+  while (result == PNGPARTS_API_OK
+  &&     (sticky_finish || prs->inpos < prs->insize)){
     /* states:
      * 0  - start
      * 1  - dictionary checksum
@@ -119,13 +124,11 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
     case 2: /*data processing callback */
       {
         result = (*prs->one_cb)(ch,prs->cb_data,
-              &pngparts_zread_put_cb,&prs);
+              &pngparts_zread_put_cb,prs);
         if (result == PNGPARTS_API_DONE){
           state = 3;
           shortpos = 0;
           result = PNGPARTS_API_OK;
-        } else if (result > 0){
-          result = 0;
         }
       }break;
     case 3: /* checksum */
@@ -141,11 +144,13 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
           if (pngparts_z_adler32_tol(prs->check) != stream_chk){
             result = PNGPARTS_API_BAD_SUM;
           } else {
-            shortpos = 0;
             result = (*prs->finish_cb)(prs->cb_data);
-            if (result == 0)
+            if (result >= PNGPARTS_API_OK){
+              shortpos = 0;
               result = PNGPARTS_API_DONE;
-            state = 4;
+              if (ch >= 0) prs->inpos += 1;/*not else */
+              state = 4;
+            }
           }
         }
       }break;

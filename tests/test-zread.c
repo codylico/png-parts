@@ -87,10 +87,8 @@ int main(int argc, char**argv){
     &pngparts_inflate_one, &pngparts_inflate_finish);
   do {
     unsigned char inbuf[256];
-    unsigned char outbuf[256];
+    unsigned char outbuf[128];
     size_t readlen;
-//     pngparts_z_setup_input(&reader,inbuf,sizeof(inbuf));
-//     pngparts_z_setup_output(&reader,outbuf,sizeof(outbuf));
     while ((readlen = fread(inbuf,sizeof(unsigned char),256,to_read)) > 0){
       pngparts_z_setup_input(&reader,inbuf,readlen);
       pngparts_z_setup_output(&reader,outbuf,sizeof(outbuf));
@@ -105,30 +103,19 @@ int main(int argc, char**argv){
             result = PNGPARTS_API_IO_ERROR;
             break;
           }
+          pngparts_z_setup_output(&reader,outbuf,sizeof(outbuf));
         }
       }
       if (result < 0) break;
     }
     if (result < 0) break;
-    result = pngparts_zread_parse(&reader,PNGPARTS_ZREAD_FINISH);
-    do {
-      if (result < 0) break;
-      size_t writelen = pngparts_z_output_left(&reader);
-      if (writelen > 0){
-        size_t writeresult =
-          fwrite(outbuf,sizeof(unsigned char),writelen,to_write);
-        if (writeresult != writelen){
-          result = PNGPARTS_API_IO_ERROR;
-          break;
-        }
-      }
-    }while (result == PNGPARTS_API_OVERFLOW);
   } while (0);
   pngparts_inflate_free(&inflater);
   pngparts_zread_free(&reader);
   /* close */
   if (to_write != stdout) fclose(to_write);
   if (to_read != stdin) fclose(to_read);
+  fflush(NULL);
   if (result){
     fprintf(stderr,"Result code %i: %s\n",
       result,pngparts_api_strerror(result));

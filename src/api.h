@@ -42,14 +42,16 @@ enum pngparts_api_flag {
  * Errors
  */
 enum pngparts_api_error {
+  /* block corrupted */
+  PNGPARTS_API_BAD_BLOCK = -12,
+  /* corrupt length value */
+  PNGPARTS_API_CORRUPT_LENGTH = -11,
   /* memory loss */
   PNGPARTS_API_MEMORY = -10,
   /* bad Adler32 checksum */
   PNGPARTS_API_BAD_SUM = -9,
   /* unsupported stream compression algorithm */
   PNGPARTS_API_UNSUPPORTED = -8,
-  /* output buffer overflow */
-  PNGPARTS_API_OVERFLOW = -7,
   /* i/o error */
   PNGPARTS_API_IO_ERROR = -6,
   /* parameter not fit the function */
@@ -64,8 +66,10 @@ enum pngparts_api_error {
   PNGPARTS_API_EOF = -1,
   /* all is good */
   PNGPARTS_API_OK = 0,
+  /* output buffer overflow */
+  PNGPARTS_API_OVERFLOW = 1,
   /* the stream is done; quit pushing data */
-  PNGPARTS_API_DONE = 1
+  PNGPARTS_API_DONE = 2
 };
 
 /*
