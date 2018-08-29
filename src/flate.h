@@ -17,6 +17,9 @@
 extern "C" {
 #endif /*__cplusplus*/
 
+/*
+ * base for flater
+ */
 struct pngparts_flate {
   /* bit position for last input byte */
   signed char bitpos;
@@ -42,6 +45,80 @@ struct pngparts_flate {
   unsigned int block_length;
 };
 
+/*
+ * Huffman code item
+ */
+struct pngparts_flate_code {
+  /* bit length of the item */
+  short length;
+  /* bits for the item */
+  unsigned int bits;
+  /* corresponding length-literal value */
+  int value;
+};
+/*
+ * Huffman code table
+ */
+struct pngparts_flate_huff {
+  /* array of items */
+  struct pngparts_flate_code *its;
+  /* number of items */
+  int count;
+};
+
+/*
+ * Construct a code struct by literal or length value.
+ * - value literal or length
+ * @return the code
+ */
+struct pngparts_flate_code pngparts_flate_code_by_literal(int value);
+
+/*
+ * Initialize a Huffman code table.
+ * - hf Huffman code table
+ */
+void pngparts_flate_huff_init(struct pngparts_flate_huff* hf);
+/*
+ * Free out a Huffman code table.
+ * - hf Huffman code table
+ */
+void pngparts_flate_huff_free(struct pngparts_flate_huff* hf);
+/*
+ * Resize the given code table.
+ * - hf table to resize
+ * - siz number of items
+ * @return OK on success, MEMORY on failure
+ */
+int pngparts_flate_huff_resize(struct pngparts_flate_huff* hf, int siz);
+/*
+ * Get table size in codes.
+ * - hf Huffman code table
+ * @return a length
+ */
+int pngparts_flate_huff_get_size(struct pngparts_flate_huff const* hf);
+/*
+ * Access a code in the table.
+ * - hf table to modify
+ * - i array index
+ * @return the code at that index
+ */
+struct pngparts_flate_code pngparts_flate_huff_index_get
+  (struct pngparts_flate_huff const* hf, int i);
+/*
+ * Access a code in the table.
+ * - hf table to modify
+ * - i array index
+ * - c new code
+ */
+void pngparts_flate_huff_index_set
+  (struct pngparts_flate_huff* hf, int i, struct pngparts_flate_code c);
+/*
+ * Generate from bit lengths the bit strings.
+ * - hf table to modify
+ * @return OK on success, CODE_EXCESS if code count exceeds constraints,
+ *   BAD_PARAM if the lengths too long
+ */
+int pngparts_flate_huff_generate(struct pngparts_flate_huff* hf);
 
 #ifdef __cplusplus
 };

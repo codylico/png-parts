@@ -42,11 +42,13 @@ enum pngparts_api_flag {
  * Errors
  */
 enum pngparts_api_error {
+  /* code lengths exceeded the */
+  PNGPARTS_API_CODE_EXCESS = -13,
   /* block corrupted */
   PNGPARTS_API_BAD_BLOCK = -12,
   /* corrupt length value */
   PNGPARTS_API_CORRUPT_LENGTH = -11,
-  /* memory loss */
+  /* memory allocation failure */
   PNGPARTS_API_MEMORY = -10,
   /* bad Adler32 checksum */
   PNGPARTS_API_BAD_SUM = -9,

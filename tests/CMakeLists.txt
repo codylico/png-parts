@@ -8,3 +8,6 @@ target_link_libraries(test_z pngparts)
 
 add_executable(test_zread "test-zread.c")
 target_link_libraries(test_zread pngparts)
+
+add_executable(test_huff "test-huff.c")
+target_link_libraries(test_huff pngparts)
