@@ -74,6 +74,11 @@ struct pngparts_flate_huff {
 struct pngparts_flate_code pngparts_flate_code_by_literal(int value);
 
 /*
+ * Get a fixed Huffman code array.
+ * @return the 288-element code array
+ */
+struct pngparts_flate_code const* pngparts_flate_huff_fixed(void);
+/*
  * Initialize a Huffman code table.
  * - hf Huffman code table
  */

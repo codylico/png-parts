@@ -35,16 +35,22 @@ void code_to_string
 
 int main(int argc, char **argv){
   int mode = -1;
-  int usage_tf = 0;
+  int usage_tf = 0, c_tf  =0;
   int result = 0;
   struct pngparts_flate_huff code_table;
   char const* text_informator = NULL;
   /**/{
     int argi;
     for (argi = 1; argi < argc; ++argi){
-      if (strcmp(argv[argi],"-f") == 0){
-        /* fixed mode */
+      if (strcmp(argv[argi],"-fx") == 0){
+        /* fixed mode, runtime generated */
         mode = 1;
+      } else if (strcmp(argv[argi],"-f") == 0){
+        /* fixed mode */
+        mode = 5;
+      } else if (strcmp(argv[argi],"-c") == 0){
+        /* C */
+        c_tf = 1;
       } else if (strcmp(argv[argi],"-v") == 0){
         /* variable code: auto */
         if (++argi < argc){
@@ -91,6 +97,7 @@ int main(int argc, char **argv){
       "  -m (file)     list of code lengths\n"
       "  -g (file)     histogram of code frequencies\n"
       "  -f            fixed codes\n"
+      "  -fx           fixed codes, runtime generated\n"
       "  -s (seed)     random seed\n"
       "  -z            ascii table\n"
       "  -?            help text\n");
@@ -114,7 +121,7 @@ int main(int argc, char **argv){
         pngparts_flate_huff_index_set(&code_table,i,cd);
       }
     }break;
-  case 1: /* fixed mode */
+  case 1: /* fixed mode, runtime generated */
     {
       int i;
       result = pngparts_flate_huff_resize(&code_table, 288);
@@ -260,9 +267,27 @@ int main(int argc, char **argv){
       pngparts_flate_huff_make_lengths(&code_table, histogram);
       free(histogram);
     }break;
+  case 5: /* fixed mode */
+    {
+      int i;
+      struct pngparts_flate_code const* src_table;
+      result = pngparts_flate_huff_resize(&code_table, 288);
+      if (result != PNGPARTS_API_OK){
+        fprintf(stderr,"failed to resize table: %s\n",
+            pngparts_api_strerror(result));
+        break;
+      }
+      src_table = pngparts_flate_huff_fixed();
+      for (i = 0; i < 288; ++i){
+        pngparts_flate_huff_index_set(&code_table,i,src_table[i]);
+      }
+    }break;
   }
   /* generate bits */if (result == PNGPARTS_API_OK){
-    result = pngparts_flate_huff_generate(&code_table);
+    if (mode == 5){/* already generated */
+      fprintf(stderr,"no generation needed.\n");
+      result = PNGPARTS_API_OK;
+    } else result = pngparts_flate_huff_generate(&code_table);
     if (result != PNGPARTS_API_OK){
       fprintf(stderr,"failed to generate table: %s\n",
           pngparts_api_strerror(result));
@@ -278,7 +303,11 @@ int main(int argc, char **argv){
       struct pngparts_flate_code const cd
         = pngparts_flate_huff_index_get(&code_table,i);
       code_to_string(cd,bitstring);
-      fprintf(stdout,"%3i : %s\n",cd.value,bitstring);
+      if (c_tf)
+        fprintf(stdout,"{%2i,%#5o,%4i},\n",
+          cd.length,cd.bits,cd.value);
+      else
+        fprintf(stdout,"%3i : %s\n",cd.value,bitstring);
     }
   }
   pngparts_flate_huff_free(&code_table);
