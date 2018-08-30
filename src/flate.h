@@ -119,6 +119,13 @@ void pngparts_flate_huff_index_set
  *   BAD_PARAM if the lengths too long
  */
 int pngparts_flate_huff_generate(struct pngparts_flate_huff* hf);
+/*
+ * Generate from histograms the bit lengths.
+ * - hf table to modify
+ * - hist relative histogram, size equal to size of table
+ */
+void pngparts_flate_huff_make_lengths
+  (struct pngparts_flate_huff* hf, int const* hist);
 
 #ifdef __cplusplus
 };
