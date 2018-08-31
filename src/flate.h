@@ -18,6 +18,29 @@ extern "C" {
 #endif /*__cplusplus*/
 
 /*
+ * Huffman code item
+ */
+struct pngparts_flate_code {
+  /* bit length of the item */
+  short length;
+  /* bits for the item */
+  unsigned int bits;
+  /* corresponding length-literal value */
+  int value;
+};
+/*
+ * Huffman code table
+ */
+struct pngparts_flate_huff {
+  /* array of items */
+  struct pngparts_flate_code *its;
+  /* capacity of items */
+  int cap;
+  /* number of items */
+  int count;
+};
+
+/*
  * base for flater
  */
 struct pngparts_flate {
@@ -45,26 +68,6 @@ struct pngparts_flate {
   unsigned int block_length;
 };
 
-/*
- * Huffman code item
- */
-struct pngparts_flate_code {
-  /* bit length of the item */
-  short length;
-  /* bits for the item */
-  unsigned int bits;
-  /* corresponding length-literal value */
-  int value;
-};
-/*
- * Huffman code table
- */
-struct pngparts_flate_huff {
-  /* array of items */
-  struct pngparts_flate_code *its;
-  /* number of items */
-  int count;
-};
 
 /*
  * Construct a code struct by literal or length value.

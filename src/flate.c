@@ -110,25 +110,28 @@ struct pngparts_flate_code pngparts_flate_code_by_literal(int value){
 void pngparts_flate_huff_init(struct pngparts_flate_huff* hf){
   hf->its = NULL;
   hf->count = 0;
+  hf->cap = 0;
 }
 void pngparts_flate_huff_free(struct pngparts_flate_huff* hf){
   free(hf->its);
   hf->its = NULL;
   hf->count = 0;
+  hf->cap = 0;
 }
 int pngparts_flate_huff_resize(struct pngparts_flate_huff* hf, int siz){
   if (siz < 0){
     return PNGPARTS_API_BAD_PARAM;
-  } else if (siz == 0){
-    pngparts_flate_huff_free(hf);
-    return PNGPARTS_API_OK;
   } else if (siz >= (INT_MAX/sizeof(struct pngparts_flate_code))){
     return PNGPARTS_API_MEMORY;
+  } else if (siz < hf->cap){
+    hf->count = siz;
+    return PNGPARTS_API_OK;
   } else if (siz != hf->count){
     void* it = realloc(hf->its,sizeof(struct pngparts_flate_code)*siz);
     if (it != NULL){
       hf->its = it;
       hf->count = siz;
+      hf->cap = siz;
       return PNGPARTS_API_OK;
     } else {
       return PNGPARTS_API_MEMORY;
