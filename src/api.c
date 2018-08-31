@@ -20,6 +20,7 @@ int pngparts_api_info(void){
 
 char const* pngparts_api_strerror(int result){
   switch (result){
+  case PNGPARTS_API_NOT_FOUND: return "value not found";
   case PNGPARTS_API_CODE_EXCESS: return "values overflowed the bit string";
   case PNGPARTS_API_BAD_BLOCK: return "bad block type";
   case PNGPARTS_API_CORRUPT_LENGTH: return "direct length corrupted";

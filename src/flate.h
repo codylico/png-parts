@@ -36,6 +36,8 @@ struct pngparts_flate_huff {
   struct pngparts_flate_code *its;
   /* capacity of items */
   int cap;
+  /* lookup table */
+  int length_points[16];
   /* number of items */
   int count;
 };
@@ -75,6 +77,13 @@ struct pngparts_flate {
  * @return the code
  */
 struct pngparts_flate_code pngparts_flate_code_by_literal(int value);
+/*
+ * Compare two codes by bit strings.
+ * - a the first code struct
+ * - b the second code struct
+ * @return 0 if equal, -1 if a < b, +1 if a > b
+ */
+int pngparts_flate_code_bitcmp(void const* a, void const* b);
 
 /*
  * Get a fixed Huffman code array.
@@ -144,6 +153,21 @@ void pngparts_flate_huff_make_lengths
 void pngparts_flate_huff_copy
   ( struct pngparts_flate_huff* hf, int i, int s,
     struct pngparts_flate_code const* c);
+/*
+ * Sort by code bits.
+ * - hf table to sort
+ */
+void pngparts_flate_huff_bit_sort(struct pngparts_flate_huff* hf);
+/*
+ * Search by code bits.
+ * - hf table to sort
+ * - length length of bit string
+ * - bits bit string; last bit is lsb,
+ * @return the value corresponding to the bit string, or NOT_FOUND if
+ *   the value was not found
+ */
+int pngparts_flate_huff_bit_search
+  (struct pngparts_flate_huff const* hf, int length, int bits);
 
 #ifdef __cplusplus
 };

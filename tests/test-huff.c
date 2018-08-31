@@ -35,7 +35,7 @@ void code_to_string
 
 int main(int argc, char **argv){
   int mode = -1;
-  int usage_tf = 0, c_tf  =0;
+  int usage_tf = 0, c_tf  =0, sort_tf = 0;
   int result = 0;
   struct pngparts_flate_huff code_table;
   char const* text_informator = NULL;
@@ -51,6 +51,9 @@ int main(int argc, char **argv){
       } else if (strcmp(argv[argi],"-c") == 0){
         /* C */
         c_tf = 1;
+      } else if (strcmp(argv[argi],"-q") == 0){
+        /* sort */
+        sort_tf = 1;
       } else if (strcmp(argv[argi],"-v") == 0){
         /* variable code: auto */
         if (++argi < argc){
@@ -92,13 +95,15 @@ int main(int argc, char **argv){
     }
   }
   if (usage_tf || mode == -1){
-    fprintf(stderr,"usage: test_huff (-v ...|-m ...|-h ...|-f|-z) [-s ...]\n"
+    fprintf(stderr,"usage: test_huff (-v ...|-m ...|-h ...|-f|-z)"
+        " [-s ...] [-q]\n"
       "  -v (number)   variable code, this many numbers\n"
       "  -m (file)     list of code lengths\n"
       "  -g (file)     histogram of code frequencies\n"
       "  -f            fixed codes\n"
       "  -fx           fixed codes, runtime generated\n"
       "  -s (seed)     random seed\n"
+      "  -q            sort by bit strings\n"
       "  -z            ascii table\n"
       "  -?            help text\n");
     return 1;
@@ -292,6 +297,9 @@ int main(int argc, char **argv){
       fprintf(stderr,"failed to generate table: %s\n",
           pngparts_api_strerror(result));
     }
+  }
+  /* sort bits */if (sort_tf){
+    pngparts_flate_huff_bit_sort(&code_table);
   }
   /* text output of bits */if (result == PNGPARTS_API_OK){
     int i;

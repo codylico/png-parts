@@ -42,7 +42,9 @@ enum pngparts_api_flag {
  * Errors
  */
 enum pngparts_api_error {
-  /* code lengths exceeded the */
+  /* value not found */
+  PNGPARTS_API_NOT_FOUND = -14,
+  /* code lengths exceeded the block size */
   PNGPARTS_API_CODE_EXCESS = -13,
   /* block corrupted */
   PNGPARTS_API_BAD_BLOCK = -12,
