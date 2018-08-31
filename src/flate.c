@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <assert.h>
+#include <string.h>
 
 struct pngparts_flate_code const pngparts_flate_huff_fixed_table[288] = {
   /*   0 */
@@ -309,4 +310,14 @@ void pngparts_flate_huff_make_lengths
 
 struct pngparts_flate_code const* pngparts_flate_huff_fixed(void){
   return pngparts_flate_huff_fixed_table;
+}
+void pngparts_flate_huff_copy
+  ( struct pngparts_flate_huff* hf, int i, int s,
+    struct pngparts_flate_code const* c)
+{
+  assert(i>=0);
+  assert(i<hf->count);
+  assert(s<hf->count-i);
+  memcpy(hf->its+i,c,sizeof(*c)*s);
+  return;
 }

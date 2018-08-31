@@ -131,6 +131,16 @@ int pngparts_flate_huff_generate(struct pngparts_flate_huff* hf);
  */
 void pngparts_flate_huff_make_lengths
   (struct pngparts_flate_huff* hf, int const* hist);
+/*
+ * Load a pre-created table into a structure.
+ * - hf table to modify
+ * - i starting index
+ * - s number of codes
+ * - c code array
+ */
+void pngparts_flate_huff_copy
+  ( struct pngparts_flate_huff* hf, int i, int s,
+    struct pngparts_flate_code const* c);
 
 #ifdef __cplusplus
 };
