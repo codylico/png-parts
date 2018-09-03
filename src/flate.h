@@ -18,6 +18,17 @@ extern "C" {
 #endif /*__cplusplus*/
 
 /*
+ * Length conversion structure.
+ */
+struct pngparts_flate_extra {
+  /* stream value */
+  int literal;
+  /* first length in bytes */
+  int length_value;
+  /* extra bits for encoding length */
+  int extra_bits;
+};
+/*
  * Huffman code item
  */
 struct pngparts_flate_code {
@@ -184,6 +195,25 @@ void pngparts_flate_fixed_distances(struct pngparts_flate_huff* hf);
  * - hf table to modify, should have at least four entries
  */
 void pngparts_flate_dynamic_codes(struct pngparts_flate_huff* hf);
+
+/*
+ * Literal to length conversion function.
+ * - literal stream length code
+ * @return a structure holding the minimum repeat length for
+ *   the given length code, along with the number of extra bits
+ *   needed for encoding the number, or a structure with negative
+ *   repeat length on error
+ */
+struct pngparts_flate_extra pngparts_flate_length_decode(int literal);
+/*
+ * Distance code to distance conversion function.
+ * - dcode stream distance code
+ * @return a structure holding the minimum repeat distance for
+ *   the given distance code, along with the number of extra bits
+ *   needed for encoding the number, or a structure with negative
+ *   repeat distance on error
+ */
+struct pngparts_flate_extra pngparts_flate_distance_decode(int dcode);
 
 #ifdef __cplusplus
 };
