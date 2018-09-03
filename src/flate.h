@@ -197,6 +197,20 @@ void pngparts_flate_fixed_distances(struct pngparts_flate_huff* hf);
 void pngparts_flate_dynamic_codes(struct pngparts_flate_huff* hf);
 
 /*
+ * Add to history.
+ * - fl flate structure to update
+ * - ch byte to add (0 - 255)
+ */
+void pngparts_flate_history_add(struct pngparts_flate *fl, int ch);
+/*
+ * Get the history byte.
+ * - fl flate with history book to read
+ * - dist distance to go back (1 is most recent)
+ * @return the value at that point in history
+ */
+int pngparts_flate_history_get(struct pngparts_flate *fl, int dist);
+
+/*
  * Literal to length conversion function.
  * - literal stream length code
  * @return a structure holding the minimum repeat length for

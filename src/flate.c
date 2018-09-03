@@ -456,3 +456,20 @@ struct pngparts_flate_extra pngparts_flate_distance_decode(int dcode){
   }
   return out;
 }
+
+void pngparts_flate_history_add(struct pngparts_flate *fl, int ch){
+  fl->history_bytes[fl->history_pos] = (unsigned char)(ch&255);
+  fl->history_pos += 1;
+  if (fl->history_pos == fl->history_size)
+    fl->history_pos = 0;
+  return;
+}
+int pngparts_flate_history_get(struct pngparts_flate *fl, int dist){
+  unsigned int repos;
+  if (dist > fl->history_pos)
+    repos = fl->history_size-dist+fl->history_pos;
+  else
+    repos = fl->history_pos-dist;
+  if (repos >= fl->history_size) return 0;
+  return fl->history_bytes[repos]&255;
+}
