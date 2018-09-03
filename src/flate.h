@@ -36,8 +36,6 @@ struct pngparts_flate_huff {
   struct pngparts_flate_code *its;
   /* capacity of items */
   int cap;
-  /* lookup table */
-  int length_points[16];
   /* number of items */
   int count;
 };
@@ -159,14 +157,24 @@ void pngparts_flate_huff_copy
  */
 void pngparts_flate_huff_bit_sort(struct pngparts_flate_huff* hf);
 /*
- * Search by code bits.
+ * Search by code bits, binary search.
  * - hf table to sort
  * - length length of bit string
  * - bits bit string; last bit is lsb,
- * @return the value corresponding to the bit string, or NOT_FOUND if
- *   the value was not found
+ * @return the value corresponding to the bit string, NOT_FOUND if
+ *   the value was not found, or BAD_BITS if the length is improper
  */
-int pngparts_flate_huff_bit_search
+int pngparts_flate_huff_bit_bsearch
+  (struct pngparts_flate_huff const* hf, int length, int bits);
+/*
+ * Search by code bits, linear search.
+ * - hf table to sort
+ * - length length of bit string
+ * - bits bit string; last bit is lsb,
+ * @return the value corresponding to the bit string, NOT_FOUND if
+ *   the value was not found, or BAD_BITS if the length is improper
+ */
+int pngparts_flate_huff_bit_lsearch
   (struct pngparts_flate_huff const* hf, int length, int bits);
 
 #ifdef __cplusplus

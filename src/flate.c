@@ -111,14 +111,12 @@ void pngparts_flate_huff_init(struct pngparts_flate_huff* hf){
   hf->its = NULL;
   hf->count = 0;
   hf->cap = 0;
-  hf->length_points[0] = -1;
 }
 void pngparts_flate_huff_free(struct pngparts_flate_huff* hf){
   free(hf->its);
   hf->its = NULL;
   hf->count = 0;
   hf->cap = 0;
-  hf->length_points[0] = -1;
 }
 int pngparts_flate_huff_resize(struct pngparts_flate_huff* hf, int siz){
   if (siz < 0){
@@ -151,7 +149,6 @@ void pngparts_flate_huff_index_set
 {
   assert(i >= 0 && i < hf->count);
   hf->its[i] = c;
-  hf->length_points[0] = -1;
 }
 int pngparts_flate_huff_length(struct pngparts_flate_huff const* hf){
   return hf->count;
@@ -196,7 +193,6 @@ int pngparts_flate_huff_generate(struct pngparts_flate_huff* hf){
       vstring[p->length] += 1;
     }
   }
-  hf->length_points[0] = -1;
   return PNGPARTS_API_OK;
 }
 int pngparts_flate_huff_get_size(struct pngparts_flate_huff const* hf){
@@ -312,7 +308,6 @@ void pngparts_flate_huff_make_lengths
       }
     }
   }
-  hf->length_points[0] = -1;
   return;
 }
 
@@ -327,7 +322,6 @@ void pngparts_flate_huff_copy
   assert(i<hf->count);
   assert(s<hf->count-i);
   memcpy(hf->its+i,c,sizeof(*c)*s);
-  hf->length_points[0] = -1;
   return;
 }
 int pngparts_flate_code_bitcmp(void const* va, void const* vb){
@@ -342,57 +336,48 @@ int pngparts_flate_code_bitcmp(void const* va, void const* vb){
   else return 0;
 }
 void pngparts_flate_huff_bit_sort(struct pngparts_flate_huff* hf){
-  int i;
   /* sort by lengths */
   qsort(hf->its,hf->count,sizeof(struct pngparts_flate_code),
       pngparts_flate_code_bitcmp);
-  /* construct table of length points */{
-    int j = 0;
-    hf->length_points[0] = 0;
-    /* start positions for sub-arrays */
-    for (i = 0; i < hf->count; ++i){
-      while (j < hf->its[i].length){
-        j += 1;
-        hf->length_points[j] = i;
-        if (j >= 15) break;
-      }
-      if (j >= 15) break;
-    }
-    /* use up the remaining slots */
-    while (j < 15){
-      j += 1;
-      hf->length_points[j] = i;
-    }
-  }
   return;
 }
-int pngparts_flate_huff_bit_search
+int pngparts_flate_huff_bit_bsearch
   (struct pngparts_flate_huff const* hf, int length, int bits)
 {
-  if (length <= 0 || length > 15) return -1;
-  if (hf->length_points[0] == 0){
-    /* sorted */
-    int start = hf->length_points[length];
-    int stop = (length==15?hf->count:hf->length_points[length+1]);
+  if (length <= 0 || length > 15) return PNGPARTS_API_BAD_BITS;
+  /* sorted */{
+    int start = 0;
+    int stop = hf->count;
     /* binary search */
     while (start < stop){
       int mid = ((stop-start)>>1)+start;
       int const midbits = hf->its[mid].bits;
-      if (midbits == bits)
+      int const midlength = hf->its[mid].length;
+      if (midbits == bits && midlength == length)
         return hf->its[mid].value;
-      else if (midbits < bits)
+      else if (midlength > length)
+        stop = mid;
+      else if (midlength < length)
+        start = mid+1;
+      else if (midbits > bits)
         stop = mid;
       else start = mid+1;
     }
-  } else {
-    /* unsorted */
-    int i;
-    for (i = 0; i < hf->count; ++i){
-      if (hf->its[i].length == length
-      &&  hf->its[i].bits == bits)
-        return hf->its[i].value;
-    }
   }
   /* not found */
-  return -1;
+  return PNGPARTS_API_NOT_FOUND;
+}
+int pngparts_flate_huff_bit_lsearch
+  (struct pngparts_flate_huff const* hf, int length, int bits)
+{
+  /* unsorted */
+  int i;
+  if (length <= 0 || length > 15) return PNGPARTS_API_BAD_BITS;
+  for (i = 0; i < hf->count; ++i){
+    if (hf->its[i].length == length
+    &&  hf->its[i].bits == bits)
+      return hf->its[i].value;
+  }
+  /* not found */
+  return PNGPARTS_API_NOT_FOUND;
 }

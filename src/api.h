@@ -56,6 +56,8 @@ enum pngparts_api_error {
   PNGPARTS_API_BAD_SUM = -9,
   /* unsupported stream compression algorithm */
   PNGPARTS_API_UNSUPPORTED = -8,
+  /* bad bit string or bit length */
+  PNGPARTS_API_BAD_BITS = -7,
   /* i/o error */
   PNGPARTS_API_IO_ERROR = -6,
   /* parameter not fit the function */

@@ -27,6 +27,7 @@ char const* pngparts_api_strerror(int result){
   case PNGPARTS_API_MEMORY: return "memory loss";
   case PNGPARTS_API_BAD_SUM: return "bad Adler32 checksum";
   case PNGPARTS_API_UNSUPPORTED: return "unsupported technique";
+  case PNGPARTS_API_BAD_BITS: return "bad bit string";
   case PNGPARTS_API_OVERFLOW: return "output overflow";
   case PNGPARTS_API_IO_ERROR: return "input/output error";
   case PNGPARTS_API_BAD_PARAM: return "bad parameter";
