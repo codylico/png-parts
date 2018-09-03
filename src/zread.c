@@ -65,8 +65,6 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
      */
     int ch;
     if (prs->flags_tf&2) {
-      /* reset the flag */
-      prs->flags_tf &= ~2;
       /* put dummy character */
       ch = -1;
     } else if (prs->inpos < prs->insize)
@@ -164,6 +162,10 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
     }
     if (result != PNGPARTS_API_OK){
       break;
+    } else if (prs->flags_tf & 2){
+      /* reset the flag */
+      prs->flags_tf &= ~2;
+      prs->inpos += 1;
     } else if (ch >= 0){
       prs->inpos += 1;
     }
@@ -171,6 +173,9 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
   prs->last_result = result;
   prs->state = (short)state;
   prs->shortpos = (short)shortpos;
+  if (result){
+    prs->flags_tf |= 2;
+  }
   return result;
 }
 int pngparts_zread_put_cb(int ch, void* data){

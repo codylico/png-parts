@@ -117,7 +117,7 @@ int main(int argc, char**argv){
   if (to_read != stdin) fclose(to_read);
   fflush(NULL);
   if (result){
-    fprintf(stderr,"Result code %i: %s\n",
+    fprintf(stderr,"\nResult code %i: %s\n",
       result,pngparts_api_strerror(result));
   }
   return result;
