@@ -4,20 +4,41 @@
 
 static int pngparts_inflate_bit
   (int b, struct pngparts_flate *fl, int(*put_cb)(int,void*), void* put_data);
+static int pngparts_inflate_history_fetch
+  (struct pngparts_flate *fl, int(*put_cb)(int,void*), void* put_data);
+
 enum pngparts_inflate_last_block {
   PNGPARTS_INFLATE_STATE = 15,
   PNGPARTS_INFLATE_LAST = PNGPARTS_INFLATE_STATE+1
 };
 
+int pngparts_inflate_history_fetch
+  (struct pngparts_flate *fl, int(*put_cb)(int,void*), void* put_data)
+{
+  while (fl->repeat_length > 0){
+    int value = pngparts_flate_history_get(fl,fl->repeat_distance);
+    int result = (*put_cb)(value,put_data);
+    if (result != PNGPARTS_API_OK){
+      return result;
+    }
+    pngparts_flate_history_add(fl,value);
+    fl->repeat_length -= 1;
+  }
+  return PNGPARTS_API_OK;
+}
 void pngparts_inflate_init(struct pngparts_flate *fl){
   fl->bitpos = 0;
   fl->last_input_byte = 0;
   fl->history_bytes = NULL;
   fl->history_size = 0;
   fl->history_pos = 0;
+  pngparts_flate_huff_init(&fl->length_table);
+  pngparts_flate_huff_init(&fl->distance_table);
   return;
 }
 void pngparts_inflate_free(struct pngparts_flate *fl){
+  pngparts_flate_huff_free(&fl->distance_table);
+  pngparts_flate_huff_free(&fl->length_table);
   free(fl->history_bytes);
   fl->history_bytes = NULL;
   fl->history_size = 0;
@@ -31,7 +52,7 @@ int pngparts_inflate_start
   if (cm != 8) return PNGPARTS_API_UNSUPPORTED;
   if (cinfo > 7) return PNGPARTS_API_UNSUPPORTED;
   {
-    unsigned int nsize = 1u<<(flevel+8);
+    unsigned int nsize = 1u<<(cinfo+8);
     unsigned char* ptr = (unsigned char*)malloc(nsize);
     if (ptr == NULL) return PNGPARTS_API_MEMORY;
     free(fl->history_bytes);
@@ -80,11 +101,25 @@ int pngparts_inflate_bit
           }break;
         case 2: /* text Huffman */
           {
+            /* set up the text Huffman */
+            result = pngparts_flate_huff_resize(&fl->length_table,288);
+            if (result != PNGPARTS_API_OK) break;
+            result = pngparts_flate_huff_resize(&fl->distance_table,32);
+            if (result != PNGPARTS_API_OK) break;
+            pngparts_flate_fixed_lengths(&fl->length_table);
+            pngparts_flate_fixed_distances(&fl->distance_table);
+            pngparts_flate_huff_bit_sort(&fl->length_table);
+            /* do length,distance reading */
             state = 6;
+            fl->bitline = 0;
+            fl->bitlength = 0;
           }break;
         case 4: /* custom codes */
           {
-            state = 7;
+            /* do read code tree first */
+            state = 11;
+            fl->bitline = 0;
+            fl->bitlength = 0;
           }break;
         default:
           state = 5;
@@ -108,6 +143,123 @@ int pngparts_inflate_bit
   case 4:
     result = PNGPARTS_API_DONE;
     break;
+  case 5: /* NOTE reserved: bad block */
+    result = PNGPARTS_API_BAD_BLOCK;
+    break;
+  case 6: /* coded length */
+    {
+      int value;
+      if (!repeat_tf){
+        fl->bitline = (fl->bitline<<1)|bit;
+        fl->bitlength += 1;
+      }
+      value = pngparts_flate_huff_bit_bsearch
+        (&fl->length_table, fl->bitlength, fl->bitline);
+      if (value >= 0){
+        if (value == 256){/* stop code */
+          state = 0;
+          fl->bitlength = 0;
+          fl->bitline = 0;
+        } else if (value < 256){/* literal */
+          result = (*put_cb)(value,put_data);
+          if (result != PNGPARTS_API_OK){
+            break;
+          } else {
+            pngparts_flate_history_add(fl,value);
+          }
+          fl->bitlength = 0;
+          fl->bitline = 0;
+        } else {/* do history stuff */
+          struct pngparts_flate_extra extra;
+          extra = pngparts_flate_length_decode(value);
+          fl->repeat_length = extra.length_value;
+          fl->bitline = 0;
+          fl->short_pos = extra.extra_bits;
+          fl->bitlength = 0;
+          if (extra.extra_bits > 0){
+            state = 7;
+          } else state = 8;
+        }
+      } else if (value == PNGPARTS_API_NOT_FOUND){
+        result = PNGPARTS_API_OK;
+      } else {
+        result = value;
+      }
+    }break;
+  case 7: /* coded length extra bits */
+    {
+      if (!repeat_tf){
+        if (fl->bitlength < fl->short_pos){
+          fl->bitline |= (bit<<fl->bitlength);
+          fl->bitlength += 1;
+        }
+      }
+      if (fl->short_pos == fl->bitlength){
+        fl->repeat_length += fl->bitline;
+        fl->bitline = 0;
+        fl->bitlength = 0;
+        state = 8;
+      }
+    }break;
+  case 8: /* coded distance */
+    {
+      int value;
+      if (!repeat_tf){
+        fl->bitline = (fl->bitline<<1)|bit;
+        fl->bitlength += 1;
+      }
+      value = pngparts_flate_huff_bit_bsearch
+        (&fl->distance_table, fl->bitlength, fl->bitline);
+      if (value >= 0){
+        struct pngparts_flate_extra extra;
+        extra = pngparts_flate_distance_decode(value);
+        fl->repeat_distance = extra.length_value;
+        fl->bitline = 0;
+        fl->short_pos = extra.extra_bits;
+        fl->bitlength = 0;
+        if (extra.extra_bits > 0){
+          state = 9;
+        } else state = 10;
+        if (state == 10){
+          result = pngparts_inflate_history_fetch(fl,put_cb,put_data);
+          if (result == PNGPARTS_API_OK){
+            state = 6;
+          }
+        }
+      } else if (value == PNGPARTS_API_NOT_FOUND){
+        result = PNGPARTS_API_OK;
+      } else {
+        result = value;
+      }
+    }break;
+  case 9: /* distance extra */
+    {
+      if (!repeat_tf){
+        if (fl->bitlength < fl->short_pos){
+          fl->bitline |= (bit<<fl->bitlength);
+          fl->bitlength += 1;
+        }
+      }
+      if (fl->short_pos == fl->bitlength){
+        fl->repeat_distance += fl->bitline;
+        fl->bitline = 0;
+        fl->bitlength = 0;
+        state = 10;
+        result = pngparts_inflate_history_fetch(fl,put_cb,put_data);
+        if (result == PNGPARTS_API_OK){
+          state = 6;
+        }
+      }
+    }break;
+  case 10: /* code history fetch */
+    {
+      result = pngparts_inflate_history_fetch(fl,put_cb,put_data);
+      if (result == PNGPARTS_API_OK){
+        state = 6;
+        fl->bitlength = 0;
+        fl->bitline = 0;
+      }
+    }break;
   default:
     result = PNGPARTS_API_BAD_STATE;
     break;

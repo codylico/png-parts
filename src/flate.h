@@ -77,6 +77,14 @@ struct pngparts_flate {
   unsigned short short_pos;
   /* direct block length */
   unsigned int block_length;
+  /* repeat length */
+  unsigned int repeat_length;
+  /* repeat distance */
+  unsigned int repeat_distance;
+  /* length code table */
+  struct pngparts_flate_huff length_table;
+  /* distance code table */
+  struct pngparts_flate_huff distance_table;
 };
 
 
