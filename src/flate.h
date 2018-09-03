@@ -81,6 +81,8 @@ struct pngparts_flate {
   unsigned int repeat_length;
   /* repeat distance */
   unsigned int repeat_distance;
+  /* code for code table */
+  struct pngparts_flate_huff code_table;
   /* length code table */
   struct pngparts_flate_huff length_table;
   /* distance code table */

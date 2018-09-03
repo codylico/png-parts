@@ -6,12 +6,47 @@ static int pngparts_inflate_bit
   (int b, struct pngparts_flate *fl, int(*put_cb)(int,void*), void* put_data);
 static int pngparts_inflate_history_fetch
   (struct pngparts_flate *fl, int(*put_cb)(int,void*), void* put_data);
+static int pngparts_inflate_advance_dynamic(struct pngparts_flate *fl);
+static void pngparts_inflate_dynamic_set
+  (struct pngparts_flate *fl, struct pngparts_flate_code code);
 
 enum pngparts_inflate_last_block {
-  PNGPARTS_INFLATE_STATE = 15,
+  PNGPARTS_INFLATE_STATE = 31,
   PNGPARTS_INFLATE_LAST = PNGPARTS_INFLATE_STATE+1
 };
 
+void pngparts_inflate_dynamic_set
+  (struct pngparts_flate *fl, struct pngparts_flate_code code)
+{
+  if (fl->state & 1){
+    pngparts_flate_huff_index_set(&fl->distance_table,fl->short_pos,code);
+  } else {
+    pngparts_flate_huff_index_set(&fl->length_table,fl->short_pos,code);
+  }
+}
+int pngparts_inflate_advance_dynamic(struct pngparts_flate *fl){
+  fl->short_pos += 1;
+  if (fl->state & 1){
+    /* distance */
+    if (fl->short_pos == pngparts_flate_huff_get_size(&fl->distance_table)){
+      int result = pngparts_flate_huff_generate(&fl->distance_table);
+      if (result != PNGPARTS_API_OK) return result;
+      pngparts_flate_huff_bit_sort(&fl->distance_table);
+      fl->state = 6;
+      fl->short_pos = 0;
+    }
+  } else {
+    /* lengths */
+    if (fl->short_pos == pngparts_flate_huff_get_size(&fl->length_table)){
+      int result = pngparts_flate_huff_generate(&fl->length_table);
+      if (result != PNGPARTS_API_OK) return result;
+      pngparts_flate_huff_bit_sort(&fl->length_table);
+      fl->state += 1;
+      fl->short_pos = 0;
+    }
+  }
+  return PNGPARTS_API_OK;
+}
 int pngparts_inflate_history_fetch
   (struct pngparts_flate *fl, int(*put_cb)(int,void*), void* put_data)
 {
@@ -32,6 +67,7 @@ void pngparts_inflate_init(struct pngparts_flate *fl){
   fl->history_bytes = NULL;
   fl->history_size = 0;
   fl->history_pos = 0;
+  pngparts_flate_huff_init(&fl->code_table);
   pngparts_flate_huff_init(&fl->length_table);
   pngparts_flate_huff_init(&fl->distance_table);
   return;
@@ -39,6 +75,7 @@ void pngparts_inflate_init(struct pngparts_flate *fl){
 void pngparts_inflate_free(struct pngparts_flate *fl){
   pngparts_flate_huff_free(&fl->distance_table);
   pngparts_flate_huff_free(&fl->length_table);
+  pngparts_flate_huff_free(&fl->code_table);
   free(fl->history_bytes);
   fl->history_bytes = NULL;
   fl->history_size = 0;
@@ -258,6 +295,199 @@ int pngparts_inflate_bit
         state = 6;
         fl->bitlength = 0;
         fl->bitline = 0;
+      }
+    }break;
+  case 11: /* microheader for dynamic block */
+    {
+      if (fl->bitlength < 14){
+        fl->bitline |= (bit<<fl->bitlength);
+        fl->bitlength += 1;
+      }
+      if (fl->bitlength >= 14){
+        result = pngparts_flate_huff_resize
+          (&fl->code_table,4+((fl->bitline>>10)&15));
+        pngparts_flate_dynamic_codes(&fl->code_table);
+        if (result != PNGPARTS_API_OK) break;
+        result = pngparts_flate_huff_resize
+          (&fl->distance_table,1+((fl->bitline>>5)&31));
+        if (result != PNGPARTS_API_OK) break;
+        result = pngparts_flate_huff_resize
+          (&fl->length_table,257+((fl->bitline)&31));
+        if (result != PNGPARTS_API_OK) break;
+        state = 12;
+        fl->short_pos = 0;
+        fl->bitlength = 0;
+        fl->bitline = 0;
+      }
+    }break;
+  case 12: /* 3 bit integers */
+    {
+      if (fl->bitlength < 3){
+        fl->bitline |= (bit<<fl->bitlength);
+        fl->bitlength += 1;
+      }
+      if (fl->bitlength >= 3){
+        struct pngparts_flate_code code =
+          pngparts_flate_huff_index_get(&fl->code_table, fl->short_pos);
+        code.length = fl->bitline;
+        pngparts_flate_huff_index_set(&fl->code_table, fl->short_pos, code);
+        fl->short_pos += 1;
+        if (fl->short_pos == pngparts_flate_huff_get_size(&fl->code_table)){
+          pngparts_flate_huff_value_sort(&fl->code_table);
+          result = pngparts_flate_huff_generate(&fl->code_table);
+          if (result != PNGPARTS_API_OK) break;
+          pngparts_flate_huff_bit_sort(&fl->code_table);
+          state = 14;
+          fl->short_pos = 0;
+          fl->shortbuf[0] = 0;
+        }
+        fl->bitline = 0;
+        fl->bitlength = 0;
+      }
+    }break;
+  case 14: /* length extraction */
+  case 15: /* distance extraction */
+    {
+      int value;
+      int reset_short_pos = fl->short_pos;
+      if (!repeat_tf){
+        fl->bitline = (fl->bitline<<1)|bit;
+        fl->bitlength += 1;
+      }
+      value = pngparts_flate_huff_bit_bsearch
+        (&fl->code_table, fl->bitlength, fl->bitline);
+      if (value >= 0){
+        if (value < 16){/* literal */
+          struct pngparts_flate_code code;
+          code.value = fl->short_pos;
+          code.length = value;
+          pngparts_inflate_dynamic_set(fl,code);
+          result = pngparts_inflate_advance_dynamic(fl);
+          if (result != PNGPARTS_API_OK){
+            fl->short_pos = reset_short_pos;
+            break;
+          } else {
+            state = fl->state;
+          }
+          fl->shortbuf[0] = (unsigned char)value;
+          fl->bitlength = 0;
+          fl->bitline = 0;
+        } else if (value == 16){/* previous copy */
+          state += 2;
+          fl->bitlength = 0;
+          fl->bitline = 0;
+        } else if (value == 17){/* do zero stuff */
+          state += 4;
+          fl->bitlength = 0;
+          fl->bitline = 0;
+        } else if (value == 18){/* do zero stuff */
+          state += 6;
+          fl->bitlength = 0;
+          fl->bitline = 0;
+        }
+      } else if (value == PNGPARTS_API_NOT_FOUND){
+        result = PNGPARTS_API_OK;
+      } else {
+        result = value;
+      }
+    }break;
+  case 16: /* lengths: repeat value */
+  case 17: /* distances: repeat value */
+    {
+      int reset_short_pos = fl->short_pos;
+      if (!repeat_tf){
+        if (fl->bitlength < 2){
+          fl->bitline |= (bit<<fl->bitlength);
+          fl->bitlength += 1;
+        }
+      }
+      if (fl->bitlength >= 2){
+        int i;
+        fl->bitline += 3;
+        for (i = 0; i < fl->bitline; ++i){
+          struct pngparts_flate_code code;
+          code.value = fl->short_pos;
+          code.length = fl->shortbuf[0];
+          pngparts_inflate_dynamic_set(fl,code);
+          result = pngparts_inflate_advance_dynamic(fl);
+          if (result != PNGPARTS_API_OK){
+            fl->short_pos = reset_short_pos;
+            break;
+          } else {
+            state = fl->state;
+          }
+        }
+        if (result != PNGPARTS_API_OK) break;
+        /*fl->shortbuf[0] = (unsigned char)value;*/
+        fl->bitline = 0;
+        fl->bitlength = 0;
+        if (state != 6) state -= 2;
+      }
+    }break;
+  case 18: /* lengths: zero value 3 bit */
+  case 19: /* distances: zero value 3 bit */
+    {
+      int reset_short_pos = fl->short_pos;
+      if (!repeat_tf){
+        if (fl->bitlength < 3){
+          fl->bitline |= (bit<<fl->bitlength);
+          fl->bitlength += 1;
+        }
+      }
+      if (fl->bitlength >= 3){
+        int i;
+        fl->bitline += 3;
+        for (i = 0; i < fl->bitline; ++i){
+          struct pngparts_flate_code code;
+          code.value = fl->short_pos;
+          code.length = 0;
+          pngparts_inflate_dynamic_set(fl,code);
+          result = pngparts_inflate_advance_dynamic(fl);
+          if (result != PNGPARTS_API_OK){
+            fl->short_pos = reset_short_pos;
+            break;
+          } else {
+            state = fl->state;
+          }
+        }
+        if (result != PNGPARTS_API_OK) break;
+        fl->shortbuf[0] = 0u;
+        fl->bitline = 0;
+        fl->bitlength = 0;
+        if (state != 6) state -= 4;
+      }
+    }break;
+  case 20: /* lengths: zero value 7 bit */
+  case 21: /* distances: zero value 7 bit */
+    {
+      int reset_short_pos = fl->short_pos;
+      if (!repeat_tf){
+        if (fl->bitlength < 7){
+          fl->bitline |= (bit<<fl->bitlength);
+          fl->bitlength += 1;
+        }
+      }
+      if (fl->bitlength >= 7){
+        int i;
+        fl->bitline += 11;
+        for (i = 0; i < fl->bitline; ++i){
+          struct pngparts_flate_code code;
+          code.value = fl->short_pos;
+          code.length = 0;
+          pngparts_inflate_dynamic_set(fl,code);
+          result = pngparts_inflate_advance_dynamic(fl);
+          if (result != PNGPARTS_API_OK){
+            fl->short_pos = reset_short_pos;
+            break;
+          } else {
+            state = fl->state;
+          }
+        }
+        if (result != PNGPARTS_API_OK) break;
+        fl->shortbuf[0] = 0u;
+        fl->bitline = 0;
+        fl->bitlength = 0;
+        if (state != 6) state -= 6;
       }
     }break;
   default:
