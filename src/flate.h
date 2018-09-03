@@ -84,11 +84,6 @@ struct pngparts_flate_code pngparts_flate_code_by_literal(int value);
 int pngparts_flate_code_bitcmp(void const* a, void const* b);
 
 /*
- * Get a fixed Huffman code array.
- * @return the 288-element code array
- */
-struct pngparts_flate_code const* pngparts_flate_huff_fixed(void);
-/*
  * Initialize a Huffman code table.
  * - hf Huffman code table
  */
@@ -142,20 +137,15 @@ int pngparts_flate_huff_generate(struct pngparts_flate_huff* hf);
 void pngparts_flate_huff_make_lengths
   (struct pngparts_flate_huff* hf, int const* hist);
 /*
- * Load a pre-created table into a structure.
- * - hf table to modify
- * - i starting index
- * - s number of codes
- * - c code array
- */
-void pngparts_flate_huff_copy
-  ( struct pngparts_flate_huff* hf, int i, int s,
-    struct pngparts_flate_code const* c);
-/*
  * Sort by code bits.
  * - hf table to sort
  */
 void pngparts_flate_huff_bit_sort(struct pngparts_flate_huff* hf);
+/*
+ * Sort by values.
+ * - hf table to sort
+ */
+void pngparts_flate_huff_value_sort(struct pngparts_flate_huff* hf);
 /*
  * Search by code bits, binary search.
  * - hf table to sort
@@ -176,6 +166,24 @@ int pngparts_flate_huff_bit_bsearch
  */
 int pngparts_flate_huff_bit_lsearch
   (struct pngparts_flate_huff const* hf, int length, int bits);
+
+/*
+ * Load the fixed Huffman literal table into a structure.
+ * - hf table to modify, should have been already resized to
+ *   at least 288 entries
+ */
+void pngparts_flate_fixed_lengths(struct pngparts_flate_huff* hf);
+/*
+ * Load the fixed Huffman distance table into a structure.
+ * - hf table to modify, should have been already resized to
+ *   at least 32 entries
+ */
+void pngparts_flate_fixed_distances(struct pngparts_flate_huff* hf);
+/*
+ * Load code length values.
+ * - hf table to modify, should have at least four entries
+ */
+void pngparts_flate_dynamic_codes(struct pngparts_flate_huff* hf);
 
 #ifdef __cplusplus
 };

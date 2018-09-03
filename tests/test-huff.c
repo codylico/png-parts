@@ -274,18 +274,13 @@ int main(int argc, char **argv){
     }break;
   case 5: /* fixed mode */
     {
-      int i;
-      struct pngparts_flate_code const* src_table;
       result = pngparts_flate_huff_resize(&code_table, 288);
       if (result != PNGPARTS_API_OK){
         fprintf(stderr,"failed to resize table: %s\n",
             pngparts_api_strerror(result));
         break;
       }
-      src_table = pngparts_flate_huff_fixed();
-      for (i = 0; i < 288; ++i){
-        pngparts_flate_huff_index_set(&code_table,i,src_table[i]);
-      }
+      pngparts_flate_fixed_lengths(&code_table);
     }break;
   }
   /* generate bits */if (result == PNGPARTS_API_OK){

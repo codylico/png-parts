@@ -5,7 +5,19 @@
 #include <assert.h>
 #include <string.h>
 
-struct pngparts_flate_code const pngparts_flate_huff_fixed_table[288] = {
+struct pngparts_flate_code const pngparts_flate_fixed_d_table[32] = {
+  /*   0 */
+  { 5,    0,   0}, { 5,   01,   1}, { 5,   02,   2}, { 5,   03,   3},
+  { 5,   04,   4}, { 5,   05,   5}, { 5,   06,   6}, { 5,   07,   7},
+  { 5,  010,   8}, { 5,  011,   9}, { 5,  012,  10}, { 5,  013,  11},
+  { 5,  014,  12}, { 5,  015,  13}, { 5,  016,  14}, { 5,  017,  15},
+  /*  16 */
+  { 5,  020,  16}, { 5,  021,  17}, { 5,  022,  18}, { 5,  023,  19},
+  { 5,  024,  20}, { 5,  025,  21}, { 5,  026,  22}, { 5,  027,  23},
+  { 5,  030,  24}, { 5,  031,  25}, { 5,  032,  26}, { 5,  033,  27},
+  { 5,  034,  28}, { 5,  035,  29}, { 5,  036,  30}, { 5,  037,  31}
+};
+struct pngparts_flate_code const pngparts_flate_fixed_l_table[288] = {
   /*   0 */
   { 8,  060,   0}, { 8,  061,   1}, { 8,  062,   2}, { 8,  063,   3},
   { 8,  064,   4}, { 8,  065,   5}, { 8,  066,   6}, { 8,  067,   7},
@@ -99,6 +111,8 @@ struct pngparts_flate_code const pngparts_flate_huff_fixed_table[288] = {
   /* 288 */
 };
 
+static int pngparts_flate_code_valuecmp(void const* va, void const* vb);
+
 struct pngparts_flate_code pngparts_flate_code_by_literal(int value){
   struct pngparts_flate_code cd;
   cd.length = 0;
@@ -163,7 +177,7 @@ int pngparts_flate_huff_generate(struct pngparts_flate_huff* hf){
     struct pngparts_flate_code const* p = hf->its;
     for (i = 0; i < hf->count; ++i, ++p){
       if (p->length < 0 || p->length > 15){
-        return PNGPARTS_API_BAD_PARAM;
+        return PNGPARTS_API_BAD_CODE_LENGTH;
       } else {
         vstring[p->length] += 1;
       }
@@ -311,19 +325,6 @@ void pngparts_flate_huff_make_lengths
   return;
 }
 
-struct pngparts_flate_code const* pngparts_flate_huff_fixed(void){
-  return pngparts_flate_huff_fixed_table;
-}
-void pngparts_flate_huff_copy
-  ( struct pngparts_flate_huff* hf, int i, int s,
-    struct pngparts_flate_code const* c)
-{
-  assert(i>=0);
-  assert(i<hf->count);
-  assert(s<hf->count-i);
-  memcpy(hf->its+i,c,sizeof(*c)*s);
-  return;
-}
 int pngparts_flate_code_bitcmp(void const* va, void const* vb){
   struct pngparts_flate_code const* a =
     (struct pngparts_flate_code const*)va;
@@ -335,10 +336,25 @@ int pngparts_flate_code_bitcmp(void const* va, void const* vb){
   else if (a->bits > b->bits) return +1;
   else return 0;
 }
+int pngparts_flate_code_valuecmp(void const* va, void const* vb){
+  struct pngparts_flate_code const* a =
+    (struct pngparts_flate_code const*)va;
+  struct pngparts_flate_code const* b =
+    (struct pngparts_flate_code const*)vb;
+  if (a->value < b->value) return -1;
+  else if (a->value > b->value) return +1;
+  else return 0;
+}
 void pngparts_flate_huff_bit_sort(struct pngparts_flate_huff* hf){
   /* sort by lengths */
   qsort(hf->its,hf->count,sizeof(struct pngparts_flate_code),
       pngparts_flate_code_bitcmp);
+  return;
+}
+void pngparts_flate_huff_value_sort(struct pngparts_flate_huff* hf){
+  /* sort by lengths */
+  qsort(hf->its,hf->count,sizeof(struct pngparts_flate_code),
+      pngparts_flate_code_valuecmp);
   return;
 }
 int pngparts_flate_huff_bit_bsearch
@@ -380,4 +396,26 @@ int pngparts_flate_huff_bit_lsearch
   }
   /* not found */
   return PNGPARTS_API_NOT_FOUND;
+}
+void pngparts_flate_fixed_lengths(struct pngparts_flate_huff* hf){
+  assert(hf->count>=288);
+  memcpy(hf->its,pngparts_flate_fixed_l_table,
+      288*sizeof(struct pngparts_flate_code));
+}
+void pngparts_flate_fixed_distances(struct pngparts_flate_huff* hf){
+  assert(hf->count>=32);
+  memcpy(hf->its,pngparts_flate_fixed_d_table,
+      32*sizeof(struct pngparts_flate_code));
+}
+void pngparts_flate_dynamic_codes(struct pngparts_flate_huff* hf){
+  int i;
+  int const static clengths[19] = {
+    16, 17, 18,  0,  8,  7,  9,  6, 10,
+     5, 11,  4, 12,  3, 13,  2, 14,  1,
+    15
+  };
+  for (i = 0; i < 19 && i < hf->count; ++i){
+    hf->its[i].value = clengths[i];
+  }
+  return;
 }
