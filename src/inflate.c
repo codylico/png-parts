@@ -106,7 +106,8 @@ int pngparts_inflate_start
 }
 int pngparts_inflate_dict(int ch, void* data){
   struct pngparts_flate *fl = (struct pngparts_flate *)data;
-  return PNGPARTS_API_UNSUPPORTED;
+  pngparts_flate_history_add(fl,ch);
+  return PNGPARTS_API_OK;
 }
 int pngparts_inflate_bit
   (int b, struct pngparts_flate *fl, int(*put_cb)(int,void*), void* put_data)

@@ -45,9 +45,24 @@ void pngparts_zread_free(struct pngparts_z *prs);
  * Parse a part of a stream.
  * - prs reader
  * - mode reader expectation mode
+ * @return OK on success, DONE at end of stream, EOF
+ *   on unexpected end of stream
  */
 PNGPARTS_API
 int pngparts_zread_parse(struct pngparts_z *prs, int mode);
+/*
+ * Try to set the dictionary for use.
+ * - prs reader
+ * - ptr bytes of the dictionary
+ * - len dictionary length in bytes
+ * @return OK if the dictionary matches the stream's
+ *   dictionary checksum, WRONG_DICT if the dictionary match fails,
+ *   or BAD_STATE if called before the dictionary checksum is
+ *   available
+ */
+PNGPARTS_API
+int pngparts_zread_set_dictionary
+  (struct pngparts_z *prs, unsigned char const* ptr, int len);
 
 #ifdef __cplusplus
 };

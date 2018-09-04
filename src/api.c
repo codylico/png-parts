@@ -20,6 +20,7 @@ int pngparts_api_info(void){
 
 char const* pngparts_api_strerror(int result){
   switch (result){
+  case PNGPARTS_API_WRONG_DICT: return "dictionary given was wrong";
   case PNGPARTS_API_BAD_CODE_LENGTH: return "bad code length";
   case PNGPARTS_API_NOT_FOUND: return "value not found";
   case PNGPARTS_API_CODE_EXCESS: return "values overflowed the bit string";

@@ -42,6 +42,8 @@ enum pngparts_api_flag {
  * Errors
  */
 enum pngparts_api_error {
+  /* dictionary given was wrong */
+  PNGPARTS_API_WRONG_DICT = -16,
   /* bad code length */
   PNGPARTS_API_BAD_CODE_LENGTH = -15,
   /* value not found */

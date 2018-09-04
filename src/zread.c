@@ -105,12 +105,7 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
         }
         if (shortpos >= 4){
           /* check the dictionary */
-          unsigned long int dict_chk
-            = pngparts_zread_get32(prs->shortbuf);
           if ((prs->flags_tf&1) == 0){
-            result = PNGPARTS_API_NEED_DICT;
-            break;
-          } else if (prs->dict_check != dict_chk){
             result = PNGPARTS_API_NEED_DICT;
             break;
           } else {
@@ -188,4 +183,36 @@ int pngparts_zread_put_cb(int ch, void* data){
   } else {
     return PNGPARTS_API_OVERFLOW;
   }
+}
+int pngparts_zread_set_dictionary
+  (struct pngparts_z *prs, unsigned char const* ptr, int len)
+{
+  if (prs->state == 1 && prs->shortpos == 4){
+    int i;
+    struct pngparts_z_adler32 check;
+    unsigned long int dict_chk
+            = pngparts_zread_get32(prs->shortbuf);
+    /* confirm the dictionary */
+    check = pngparts_z_adler32_new();
+    for (i = 0; i < len; ++i){
+      check = pngparts_z_adler32_accum(check, ptr[i]&255);
+    }
+    if (pngparts_z_adler32_tol(check) != dict_chk){
+      return PNGPARTS_API_WRONG_DICT;
+    } else {
+      /* apply the dictionary */
+      int result = PNGPARTS_API_OK;
+      if (prs->dict_cb != NULL){
+        for (i = 0; i < len && result == PNGPARTS_API_OK; ++i){
+          result = (*prs->dict_cb)(ptr[i]&255, prs->cb_data);
+        }
+      }
+      if (result == PNGPARTS_API_OK){
+        prs->flags_tf |= 1;
+        if (prs->last_result == PNGPARTS_API_NEED_DICT)
+          prs->last_result = PNGPARTS_API_OK;
+      }
+      return result;
+    }
+  } else return PNGPARTS_API_BAD_STATE;
 }
