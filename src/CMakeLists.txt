@@ -5,7 +5,12 @@ project(pngparts)
 option(BUILD_SHARED_LIBS "Build shared libraries")
 
 set(pngparts_src
-  api.c api.h)
+  api.c api.h
+  z.c z.h
+  zread.c zread.h
+  flate.h flate.c
+  inflate.h inflate.c
+  )
 
 add_library(pngparts ${pngparts_src})
 if (BUILD_SHARED_LIBS)
