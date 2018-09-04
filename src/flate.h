@@ -95,6 +95,7 @@ struct pngparts_flate {
  * - value literal or length
  * @return the code
  */
+PNGPARTS_API
 struct pngparts_flate_code pngparts_flate_code_by_literal(int value);
 /*
  * Compare two codes by bit strings.
@@ -102,17 +103,20 @@ struct pngparts_flate_code pngparts_flate_code_by_literal(int value);
  * - b the second code struct
  * @return 0 if equal, -1 if a < b, +1 if a > b
  */
+PNGPARTS_API
 int pngparts_flate_code_bitcmp(void const* a, void const* b);
 
 /*
  * Initialize a Huffman code table.
  * - hf Huffman code table
  */
+PNGPARTS_API
 void pngparts_flate_huff_init(struct pngparts_flate_huff* hf);
 /*
  * Free out a Huffman code table.
  * - hf Huffman code table
  */
+PNGPARTS_API
 void pngparts_flate_huff_free(struct pngparts_flate_huff* hf);
 /*
  * Resize the given code table.
@@ -120,12 +124,14 @@ void pngparts_flate_huff_free(struct pngparts_flate_huff* hf);
  * - siz number of items
  * @return OK on success, MEMORY on failure
  */
+PNGPARTS_API
 int pngparts_flate_huff_resize(struct pngparts_flate_huff* hf, int siz);
 /*
  * Get table size in codes.
  * - hf Huffman code table
  * @return a length
  */
+PNGPARTS_API
 int pngparts_flate_huff_get_size(struct pngparts_flate_huff const* hf);
 /*
  * Access a code in the table.
@@ -133,6 +139,7 @@ int pngparts_flate_huff_get_size(struct pngparts_flate_huff const* hf);
  * - i array index
  * @return the code at that index
  */
+PNGPARTS_API
 struct pngparts_flate_code pngparts_flate_huff_index_get
   (struct pngparts_flate_huff const* hf, int i);
 /*
@@ -141,6 +148,7 @@ struct pngparts_flate_code pngparts_flate_huff_index_get
  * - i array index
  * - c new code
  */
+PNGPARTS_API
 void pngparts_flate_huff_index_set
   (struct pngparts_flate_huff* hf, int i, struct pngparts_flate_code c);
 /*
@@ -149,23 +157,27 @@ void pngparts_flate_huff_index_set
  * @return OK on success, CODE_EXCESS if code count exceeds constraints,
  *   BAD_PARAM if the lengths too long
  */
+PNGPARTS_API
 int pngparts_flate_huff_generate(struct pngparts_flate_huff* hf);
 /*
  * Generate from histograms the bit lengths.
  * - hf table to modify
  * - hist relative histogram, size equal to size of table
  */
+PNGPARTS_API
 void pngparts_flate_huff_make_lengths
   (struct pngparts_flate_huff* hf, int const* hist);
 /*
  * Sort by code bits.
  * - hf table to sort
  */
+PNGPARTS_API
 void pngparts_flate_huff_bit_sort(struct pngparts_flate_huff* hf);
 /*
  * Sort by values.
  * - hf table to sort
  */
+PNGPARTS_API
 void pngparts_flate_huff_value_sort(struct pngparts_flate_huff* hf);
 /*
  * Search by code bits, binary search.
@@ -175,6 +187,7 @@ void pngparts_flate_huff_value_sort(struct pngparts_flate_huff* hf);
  * @return the value corresponding to the bit string, NOT_FOUND if
  *   the value was not found, or BAD_BITS if the length is improper
  */
+PNGPARTS_API
 int pngparts_flate_huff_bit_bsearch
   (struct pngparts_flate_huff const* hf, int length, int bits);
 /*
@@ -185,6 +198,7 @@ int pngparts_flate_huff_bit_bsearch
  * @return the value corresponding to the bit string, NOT_FOUND if
  *   the value was not found, or BAD_BITS if the length is improper
  */
+PNGPARTS_API
 int pngparts_flate_huff_bit_lsearch
   (struct pngparts_flate_huff const* hf, int length, int bits);
 
@@ -193,17 +207,20 @@ int pngparts_flate_huff_bit_lsearch
  * - hf table to modify, should have been already resized to
  *   at least 288 entries
  */
+PNGPARTS_API
 void pngparts_flate_fixed_lengths(struct pngparts_flate_huff* hf);
 /*
  * Load the fixed Huffman distance table into a structure.
  * - hf table to modify, should have been already resized to
  *   at least 32 entries
  */
+PNGPARTS_API
 void pngparts_flate_fixed_distances(struct pngparts_flate_huff* hf);
 /*
  * Load code length values.
  * - hf table to modify, should have at least four entries
  */
+PNGPARTS_API
 void pngparts_flate_dynamic_codes(struct pngparts_flate_huff* hf);
 
 /*
@@ -211,6 +228,7 @@ void pngparts_flate_dynamic_codes(struct pngparts_flate_huff* hf);
  * - fl flate structure to update
  * - ch byte to add (0 - 255)
  */
+PNGPARTS_API
 void pngparts_flate_history_add(struct pngparts_flate *fl, int ch);
 /*
  * Get the history byte.
@@ -218,6 +236,7 @@ void pngparts_flate_history_add(struct pngparts_flate *fl, int ch);
  * - dist distance to go back (1 is most recent)
  * @return the value at that point in history
  */
+PNGPARTS_API
 int pngparts_flate_history_get(struct pngparts_flate *fl, int dist);
 
 /*
@@ -228,6 +247,7 @@ int pngparts_flate_history_get(struct pngparts_flate *fl, int dist);
  *   needed for encoding the number, or a structure with negative
  *   repeat length on error
  */
+PNGPARTS_API
 struct pngparts_flate_extra pngparts_flate_length_decode(int literal);
 /*
  * Distance code to distance conversion function.
@@ -237,6 +257,7 @@ struct pngparts_flate_extra pngparts_flate_length_decode(int literal);
  *   needed for encoding the number, or a structure with negative
  *   repeat distance on error
  */
+PNGPARTS_API
 struct pngparts_flate_extra pngparts_flate_distance_decode(int dcode);
 
 #ifdef __cplusplus
