@@ -11,3 +11,6 @@ target_link_libraries(test_zread pngparts)
 
 add_executable(test_huff "test-huff.c")
 target_link_libraries(test_huff pngparts)
+
+add_executable(test_png "test-png.c")
+target_link_libraries(test_png pngparts)
