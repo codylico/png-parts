@@ -91,7 +91,7 @@ int pngparts_z_output_left(struct pngparts_z const* reader){
   return reader->outpos;
 }
 void pngparts_z_set_cb
-  ( struct pngparts_z *reader, struct pngparts_api_flate_cb const* cb)
+  ( struct pngparts_z *reader, struct pngparts_api_flate const* cb)
 {
   memcpy(&reader->cb,cb,sizeof(*cb));
   return;

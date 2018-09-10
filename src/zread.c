@@ -35,7 +35,7 @@ void pngparts_zread_init(struct pngparts_z *prs){
   prs->outpos = 0;
   prs->outsize = 0;
   prs->flags_tf = 0;
-  prs->cb = pngparts_api_flate_cb_empty();
+  prs->cb = pngparts_api_flate_empty();
   prs->last_result = 0;
   return;
 }

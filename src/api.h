@@ -104,6 +104,13 @@ typedef int (*pngparts_api_flate_start_cb)
  */
 typedef int (*pngparts_api_flate_dict_cb)(void* cb_data, int ch);
 /*
+ * Put an output byte.
+ * - zout callback data
+ * - ch byte to put (0-255)
+ * @return OK on success, OVERFLOW if no more room for bytes
+ */
+typedef int (*pngparts_api_flate_put_cb)(void* zout, int ch);
+/*
  * Byte callback.
  * - cb_data flate callback data
  * - ch byte, or -1 for repeat bytes
@@ -125,7 +132,7 @@ typedef int (*pngparts_api_flate_finish_cb)(void* cb_data);
 /*
  * Interface for DEFLATE algorithms
  */
-struct pngparts_api_flate_cb {
+struct pngparts_api_flate {
   /* callback data */
   void* cb_data;
   /* start callback */
@@ -141,7 +148,7 @@ struct pngparts_api_flate_cb {
  * Create an empty DEFLATE callback interface.
  * @return an empty interface structure
  */
-struct pngparts_api_flate_cb pngparts_api_flate_cb_empty(void);
+struct pngparts_api_flate pngparts_api_flate_empty(void);
 
 /*
  * API information as an integer

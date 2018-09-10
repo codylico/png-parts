@@ -83,8 +83,8 @@ int main(int argc, char**argv){
   pngparts_zread_init(&reader);
   pngparts_inflate_init(&inflater);
   {
-    struct pngparts_api_flate_cb fcb;
-    pngparts_inflate_assign_cb(&fcb, &inflater);
+    struct pngparts_api_flate fcb;
+    pngparts_inflate_assign_api(&fcb, &inflater);
     pngparts_z_set_cb( &reader, &fcb);
   }
   do {

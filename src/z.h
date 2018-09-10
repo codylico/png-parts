@@ -52,7 +52,7 @@ struct pngparts_z_adler32 {
  */
 struct pngparts_z {
   /* callback information */
-  struct pngparts_api_flate_cb cb;
+  struct pngparts_api_flate cb;
   /* reader state */
   short state;
   /* the stream header */
@@ -185,7 +185,7 @@ int pngparts_z_output_left(struct pngparts_z const* reader);
  */
 PNGPARTS_API
 void pngparts_z_set_cb
-  ( struct pngparts_z *base, struct pngparts_api_flate_cb const* cb);
+  ( struct pngparts_z *base, struct pngparts_api_flate const* cb);
 
 #ifdef __cplusplus
 };

@@ -81,8 +81,8 @@ void pngparts_inflate_free(struct pngparts_flate *fl){
   fl->history_size = 0;
   return;
 }
-void pngparts_inflate_assign_cb
-  (struct pngparts_api_flate_cb *fcb, struct pngparts_flate *fl)
+void pngparts_inflate_assign_api
+  (struct pngparts_api_flate *fcb, struct pngparts_flate *fl)
 {
   fcb->cb_data = fl;
   fcb->start_cb = pngparts_inflate_start;

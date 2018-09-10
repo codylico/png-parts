@@ -36,8 +36,8 @@ void pngparts_inflate_free(struct pngparts_flate *fl);
  * - src the flate struct
  */
 PNGPARTS_API
-void pngparts_inflate_assign_cb
-  (struct pngparts_api_flate_cb *fcb, struct pngparts_flate *fl);
+void pngparts_inflate_assign_api
+  (struct pngparts_api_flate *fcb, struct pngparts_flate *fl);
 /*
  * Start callback.
  * - fl the flate struct to use

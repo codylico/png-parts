@@ -43,7 +43,8 @@ char const* pngparts_api_strerror(int result){
   default: return "?";
   }
 }
-struct pngparts_api_flate_cb pngparts_api_flate_cb_empty(void){
-  struct pngparts_api_flate_cb out = {NULL,NULL,NULL,NULL,NULL};
+
+struct pngparts_api_flate pngparts_api_flate_empty(void){
+  struct pngparts_api_flate out = {NULL,NULL,NULL,NULL,NULL};
   return out;
 }
