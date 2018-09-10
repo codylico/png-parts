@@ -81,9 +81,20 @@ void pngparts_inflate_free(struct pngparts_flate *fl){
   fl->history_size = 0;
   return;
 }
+void pngparts_inflate_assign_cb
+  (struct pngparts_api_flate_cb *fcb, struct pngparts_flate *fl)
+{
+  fcb->cb_data = fl;
+  fcb->start_cb = pngparts_inflate_start;
+  fcb->dict_cb = pngparts_inflate_dict;
+  fcb->one_cb = pngparts_inflate_one;
+  fcb->finish_cb = pngparts_inflate_finish;
+  return;
+}
+
 int pngparts_inflate_start
-  ( short int fdict, short int flevel, short int cm, short int cinfo,
-    void* data)
+  ( void* data,
+    short int fdict, short int flevel, short int cm, short int cinfo)
 {
   struct pngparts_flate *fl = (struct pngparts_flate *)data;
   if (cm != 8) return PNGPARTS_API_UNSUPPORTED;
@@ -104,7 +115,7 @@ int pngparts_inflate_start
   }
   return PNGPARTS_API_OK;
 }
-int pngparts_inflate_dict(int ch, void* data){
+int pngparts_inflate_dict(void* data, int ch){
   struct pngparts_flate *fl = (struct pngparts_flate *)data;
   pngparts_flate_history_add(fl,ch);
   return PNGPARTS_API_OK;
@@ -503,7 +514,7 @@ int pngparts_inflate_bit
   return result;
 }
 int pngparts_inflate_one
-  (int ch, void *data, int(*put_cb)(int,void*), void* put_data)
+  (void* data, int ch, int(*put_cb)(int,void*), void* put_data)
 {
   struct pngparts_flate *fl = (struct pngparts_flate *)data;
   int pos = PNGPARTS_API_OK;

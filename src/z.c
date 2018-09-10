@@ -9,6 +9,8 @@
  * zlib main header
  */
 #include "z.h"
+#include <string.h>
+
 int pngparts_z_header_check(struct pngparts_z_header hdr){
   int holding = 0;
   holding |= (hdr.fdict&1)<<5;
@@ -89,14 +91,8 @@ int pngparts_z_output_left(struct pngparts_z const* reader){
   return reader->outpos;
 }
 void pngparts_z_set_cb
-  ( struct pngparts_z *reader, void* cb_data,
-    pngparts_z_start_cb start_cb, pngparts_z_dict_cb dict_cb,
-    pngparts_z_one_cb one_cb, pngparts_z_finish_cb finish_cb)
+  ( struct pngparts_z *reader, struct pngparts_api_flate_cb const* cb)
 {
-  reader->cb_data = cb_data;
-  reader->start_cb = start_cb;
-  reader->dict_cb = dict_cb;
-  reader->one_cb = one_cb;
-  reader->finish_cb = finish_cb;
+  memcpy(&reader->cb,cb,sizeof(*cb));
   return;
 }

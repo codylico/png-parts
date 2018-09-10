@@ -9,6 +9,7 @@
  * API main header
  */
 #include "api.h"
+#include <stddef.h>
 
 int pngparts_api_info(void){
   int out = 0;
@@ -41,4 +42,8 @@ char const* pngparts_api_strerror(int result){
   case PNGPARTS_API_DONE: return "the stream is done";
   default: return "?";
   }
+}
+struct pngparts_api_flate_cb pngparts_api_flate_cb_empty(void){
+  struct pngparts_api_flate_cb out = {NULL,NULL,NULL,NULL,NULL};
+  return out;
 }

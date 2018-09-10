@@ -31,27 +31,36 @@ void pngparts_inflate_init(struct pngparts_flate *fl);
 PNGPARTS_API
 void pngparts_inflate_free(struct pngparts_flate *fl);
 /*
+ * Compose a flate callback for an inflate module.
+ * - dst the callback information structure
+ * - src the flate struct
+ */
+PNGPARTS_API
+void pngparts_inflate_assign_cb
+  (struct pngparts_api_flate_cb *fcb, struct pngparts_flate *fl);
+/*
  * Start callback.
+ * - fl the flate struct to use
  * - hdr header information
  * @return zero if the callback supports the stream,
  *   or -1 otherwise
  */
 PNGPARTS_API
 int pngparts_inflate_start
-  ( short int fdict, short int flevel, short int cm, short int cinfo,
-    void* data);
+  ( void *fl,
+    short int fdict, short int flevel, short int cm, short int cinfo);
 /*
  * Dictionary byte callback.
+ * - fl the flate struct to use
  * - ch byte, or -1 for repeat bytes
- * - data user data
  * @return zero, or -1 if preset dictionaries are not supported
  */
 PNGPARTS_API
-int pngparts_inflate_dict(int ch, void* data);
+int pngparts_inflate_dict(void *fl, int ch);
 /*
  * Byte callback.
+ * - fl the flate struct to use
  * - ch byte, or -1 for repeat bytes
- * - data user data
  * - put_cb callback for putting output bytes
  * - put_data data to pass to put callback
  * @return zero, or -1 if the output buffer is too full,
@@ -59,14 +68,14 @@ int pngparts_inflate_dict(int ch, void* data);
  */
 PNGPARTS_API
 int pngparts_inflate_one
-  (int ch, void *data, int(*put_cb)(int,void*), void* put_data);
+  (void *fl, int ch, int(*put_cb)(int,void*), void* put_data);
 /*
  * Finish callback.
- * - data user data
+ * - fl the flate struct to use
  * @return zero, or -1 if the callback expects more data
  */
 PNGPARTS_API
-int pngparts_inflate_finish(void* data);
+int pngparts_inflate_finish(void* fl);
 
 #ifdef __cplusplus
 };

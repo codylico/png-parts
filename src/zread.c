@@ -35,10 +35,7 @@ void pngparts_zread_init(struct pngparts_z *prs){
   prs->outpos = 0;
   prs->outsize = 0;
   prs->flags_tf = 0;
-  prs->cb_data = NULL;
-  prs->start_cb = NULL;
-  prs->one_cb = NULL;
-  prs->finish_cb = NULL;
+  prs->cb = pngparts_api_flate_cb_empty();
   prs->last_result = 0;
   return;
 }
@@ -83,9 +80,10 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
           if (prs->header.fcheck%31 != pngparts_z_header_check(prs->header)%31){
             result = PNGPARTS_API_BAD_CHECK;
             break;
-          } else if (prs->start_cb == NULL
-          ||  (*prs->start_cb)(prs->header.fdict, prs->header.flevel,
-                prs->header.cm, prs->header.cinfo,prs->cb_data) != 0)
+          } else if (prs->cb.start_cb == NULL
+          ||  (*prs->cb.start_cb)(prs->cb.cb_data,
+                prs->header.fdict,prs->header.flevel,prs->header.cm,
+                prs->header.cinfo) != 0)
           {
             result = PNGPARTS_API_UNSUPPORTED;
           } else if (prs->header.fdict){
@@ -116,7 +114,7 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
       }break;
     case 2: /*data processing callback */
       {
-        result = (*prs->one_cb)(ch,prs->cb_data,
+        result = (*prs->cb.one_cb)(prs->cb.cb_data,ch,
               &pngparts_zread_put_cb,prs);
         if (result == PNGPARTS_API_DONE){
           state = 3;
@@ -137,7 +135,7 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
           if (pngparts_z_adler32_tol(prs->check) != stream_chk){
             result = PNGPARTS_API_BAD_SUM;
           } else {
-            result = (*prs->finish_cb)(prs->cb_data);
+            result = (*prs->cb.finish_cb)(prs->cb.cb_data);
             if (result >= PNGPARTS_API_OK){
               shortpos = 0;
               result = PNGPARTS_API_DONE;
@@ -202,9 +200,9 @@ int pngparts_zread_set_dictionary
     } else {
       /* apply the dictionary */
       int result = PNGPARTS_API_OK;
-      if (prs->dict_cb != NULL){
+      if (prs->cb.dict_cb != NULL){
         for (i = 0; i < len && result == PNGPARTS_API_OK; ++i){
-          result = (*prs->dict_cb)(ptr[i]&255, prs->cb_data);
+          result = (*prs->cb.dict_cb)(prs->cb.cb_data, ptr[i]&255);
         }
       }
       if (result == PNGPARTS_API_OK){

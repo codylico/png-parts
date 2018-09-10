@@ -82,6 +82,67 @@ enum pngparts_api_error {
   PNGPARTS_API_DONE = 2
 };
 
+
+/*
+ * Start callback.
+ * - cb_data flate callback data
+ * - fdict dictionary
+ * - flevel compression level
+ * - cm compression method
+ * - cinfo compression information
+ * @return OK if the callback supports the stream,
+ *   or UNSUPPORTED otherwise
+ */
+typedef int (*pngparts_api_flate_start_cb)
+  ( void* cb_data,
+    short int fdict, short int flevel, short int cm, short int cinfo);
+/*
+ * Dictionary byte callback.
+ * - cb_data flate callback data
+ * - ch byte, or -1 for repeat bytes
+ * @return OK, or UNSUPPORTED if preset dictionaries are not supported
+ */
+typedef int (*pngparts_api_flate_dict_cb)(void* cb_data, int ch);
+/*
+ * Byte callback.
+ * - cb_data flate callback data
+ * - ch byte, or -1 for repeat bytes
+ * - put_cb callback for putting output bytes (to return 0 on
+ *     success or OVERFLOW on overflow)
+ * TODO update put_data
+ * - put_data data to pass to put callback
+ * @return OK, or OVERFLOW if the output buffer is too full,
+ *   or DONE at the end of the bit stream; return other negative on error
+ */
+typedef int (*pngparts_api_flate_one_cb)
+  ( void* cb_data, int ch, int(*put_cb)(int,void*), void* put_data);
+/*
+ * Finish callback.
+ * - cb_data flate callback data
+ * @return zero, or EOF if the callback expected more data
+ */
+typedef int (*pngparts_api_flate_finish_cb)(void* cb_data);
+/*
+ * Interface for DEFLATE algorithms
+ */
+struct pngparts_api_flate_cb {
+  /* callback data */
+  void* cb_data;
+  /* start callback */
+  pngparts_api_flate_start_cb start_cb;
+  /* dictionary callback */
+  pngparts_api_flate_dict_cb dict_cb;
+  /* bit callback */
+  pngparts_api_flate_one_cb one_cb;
+  /* finish callback */
+  pngparts_api_flate_finish_cb finish_cb;
+};
+/*
+ * Create an empty DEFLATE callback interface.
+ * @return an empty interface structure
+ */
+struct pngparts_api_flate_cb pngparts_api_flate_cb_empty(void);
+
 /*
  * API information as an integer
  */

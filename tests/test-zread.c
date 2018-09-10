@@ -82,9 +82,11 @@ int main(int argc, char**argv){
   /* parse the zlib stream */
   pngparts_zread_init(&reader);
   pngparts_inflate_init(&inflater);
-  pngparts_z_set_cb( &reader, &inflater,
-    &pngparts_inflate_start, &pngparts_inflate_dict,
-    &pngparts_inflate_one, &pngparts_inflate_finish);
+  {
+    struct pngparts_api_flate_cb fcb;
+    pngparts_inflate_assign_cb(&fcb, &inflater);
+    pngparts_z_set_cb( &reader, &fcb);
+  }
   do {
     unsigned char inbuf[256];
     unsigned char outbuf[128];
