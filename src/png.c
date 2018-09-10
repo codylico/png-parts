@@ -105,3 +105,15 @@ struct pngparts_png_crc32 pngparts_png_crc32_accum
     {(chk.accum>>8)^(pngparts_png_crc32_pre[(chk.accum^ch)&255])};
   return out;
 }
+void pngparts_png_buffer_setup
+  (struct pngparts_png *p, void* buf, int size)
+{
+  p->buf = buf;
+  p->size = size;
+  p->pos = 0;
+  return;
+}
+
+int pngparts_png_buffer_done(struct pngparts_png const * p){
+  return p->pos == p->size || p->state == 4;
+}

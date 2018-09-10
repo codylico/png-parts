@@ -14,3 +14,6 @@ target_link_libraries(test_huff pngparts)
 
 add_executable(test_png "test-png.c")
 target_link_libraries(test_png pngparts)
+
+add_executable(test_pngread "test-pngread.c")
+target_link_libraries(test_pngread pngparts)
