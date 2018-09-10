@@ -148,36 +148,36 @@ struct pngparts_z_adler32 pngparts_z_adler32_accum
 
 /*
  * Setup an input buffer for next use.
- * - reader reader
+ * - zs zlib stream struct (struct pngparts_z)
  * - inbuf input buffer
  * - insize amount of data to input
  */
 PNGPARTS_API
 void pngparts_z_setup_input
-  (struct pngparts_z *reader, void* inbuf, int insize);
+  (void *zs, void* inbuf, int insize);
 /*
  * Setup an output buffer for next use.
- * - reader reader
+ * - zs zlib stream struct (struct pngparts_z)
  * - outbuf output buffer
  * - outsize amount of space available for output
  */
 PNGPARTS_API
 void pngparts_z_setup_output
-  (struct pngparts_z *reader, void* outbuf, int outsize);
+  (void *zs, void* outbuf, int outsize);
 /*
  * Check if the reader has used up all the latest input.
- * - reader reader
+ * - zs zlib stream struct (struct pngparts_z)
  * @return nonzero if the input is used up
  */
 PNGPARTS_API
-int pngparts_z_input_done(struct pngparts_z const* reader);
+int pngparts_z_input_done(void const* zs);
 /*
  * Check how much output bytes wait for you.
- * - reader reader
+ * - zs zlib stream struct (struct pngparts_z)
  * @return byte count for the output bytes
  */
 PNGPARTS_API
-int pngparts_z_output_left(struct pngparts_z const* reader);
+int pngparts_z_output_left(void const* zs);
 /*
  * Set the compression callbacks.
  * - base the reader

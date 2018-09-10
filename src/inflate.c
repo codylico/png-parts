@@ -3,9 +3,9 @@
 #include <stdlib.h>
 
 static int pngparts_inflate_bit
-  (int b, struct pngparts_flate *fl, int(*put_cb)(int,void*), void* put_data);
+  (int b, struct pngparts_flate *fl, void* put_data, int(*put_cb)(void*,int));
 static int pngparts_inflate_history_fetch
-  (struct pngparts_flate *fl, int(*put_cb)(int,void*), void* put_data);
+  (struct pngparts_flate *fl, void* put_data, int(*put_cb)(void*,int));
 static int pngparts_inflate_advance_dynamic(struct pngparts_flate *fl);
 static void pngparts_inflate_dynamic_set
   (struct pngparts_flate *fl, struct pngparts_flate_code code);
@@ -48,11 +48,11 @@ int pngparts_inflate_advance_dynamic(struct pngparts_flate *fl){
   return PNGPARTS_API_OK;
 }
 int pngparts_inflate_history_fetch
-  (struct pngparts_flate *fl, int(*put_cb)(int,void*), void* put_data)
+  (struct pngparts_flate *fl, void* put_data, int(*put_cb)(void*,int))
 {
   while (fl->repeat_length > 0){
     int value = pngparts_flate_history_get(fl,fl->repeat_distance);
-    int result = (*put_cb)(value,put_data);
+    int result = (*put_cb)(put_data,value);
     if (result != PNGPARTS_API_OK){
       return result;
     }
@@ -121,7 +121,7 @@ int pngparts_inflate_dict(void* data, int ch){
   return PNGPARTS_API_OK;
 }
 int pngparts_inflate_bit
-  (int b, struct pngparts_flate *fl, int(*put_cb)(int,void*), void* put_data)
+  (int b, struct pngparts_flate *fl, void* put_data, int(*put_cb)(void*,int))
 {
   int result = PNGPARTS_API_OK;
   int bit = (b&255)?1:0;
@@ -210,7 +210,7 @@ int pngparts_inflate_bit
           fl->bitlength = 0;
           fl->bitline = 0;
         } else if (value < 256){/* literal */
-          result = (*put_cb)(value,put_data);
+          result = (*put_cb)(put_data,value);
           if (result != PNGPARTS_API_OK){
             break;
           } else {
@@ -270,7 +270,7 @@ int pngparts_inflate_bit
           state = 9;
         } else state = 10;
         if (state == 10){
-          result = pngparts_inflate_history_fetch(fl,put_cb,put_data);
+          result = pngparts_inflate_history_fetch(fl,put_data,put_cb);
           if (result == PNGPARTS_API_OK){
             state = 6;
           }
@@ -294,7 +294,7 @@ int pngparts_inflate_bit
         fl->bitline = 0;
         fl->bitlength = 0;
         state = 10;
-        result = pngparts_inflate_history_fetch(fl,put_cb,put_data);
+        result = pngparts_inflate_history_fetch(fl,put_data,put_cb);
         if (result == PNGPARTS_API_OK){
           state = 6;
         }
@@ -302,7 +302,7 @@ int pngparts_inflate_bit
     }break;
   case 10: /* code history fetch */
     {
-      result = pngparts_inflate_history_fetch(fl,put_cb,put_data);
+      result = pngparts_inflate_history_fetch(fl,put_data,put_cb);
       if (result == PNGPARTS_API_OK){
         state = 6;
         fl->bitlength = 0;
@@ -514,7 +514,7 @@ int pngparts_inflate_bit
   return result;
 }
 int pngparts_inflate_one
-  (void* data, int ch, int(*put_cb)(int,void*), void* put_data)
+  (void* data, int ch, void* put_data, int(*put_cb)(void*,int))
 {
   struct pngparts_flate *fl = (struct pngparts_flate *)data;
   int pos = PNGPARTS_API_OK;
@@ -555,7 +555,7 @@ int pngparts_inflate_one
     case 3:
       {
         if (fl->block_length > 0){
-          pos = (*put_cb)(ch,put_data);
+          pos = (*put_cb)(put_data,ch);
           if (pos != PNGPARTS_API_OK){
             break;
           } else fl->block_length -= 1;
@@ -576,12 +576,12 @@ int pngparts_inflate_one
     fl->bitpos = 0;
   else {
     ch = fl->last_input_byte;
-    pos = pngparts_inflate_bit((ch&(1<<fl->bitpos))|256,fl,put_cb,put_data);
+    pos = pngparts_inflate_bit((ch&(1<<fl->bitpos))|256,fl,put_data,put_cb);
     if (pos != 0) return pos;
     else fl->bitpos += 1;
   }
   for (; fl->bitpos < 8; ++fl->bitpos){
-    pos = pngparts_inflate_bit(ch&(1<<fl->bitpos),fl,put_cb,put_data);
+    pos = pngparts_inflate_bit(ch&(1<<fl->bitpos),fl,put_data,put_cb);
     if (pos != 0) break;
   }
   if (fl->bitpos < 8){

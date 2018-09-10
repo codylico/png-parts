@@ -68,7 +68,7 @@ int pngparts_inflate_dict(void *fl, int ch);
  */
 PNGPARTS_API
 int pngparts_inflate_one
-  (void *fl, int ch, int(*put_cb)(int,void*), void* put_data);
+  (void *fl, int ch, void* put_data, int(*put_cb)(void*,int));
 /*
  * Finish callback.
  * - fl the flate struct to use

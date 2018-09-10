@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int pngparts_zread_put_cb(int ch, void* prs);
+static int pngparts_zread_put_cb(void* prs, int ch);
 static unsigned long int pngparts_zread_get32(unsigned char const* );
 
 unsigned long int pngparts_zread_get32(unsigned char const* b){
@@ -42,7 +42,8 @@ void pngparts_zread_init(struct pngparts_z *prs){
 void pngparts_zread_free(struct pngparts_z *prs){
   return;
 }
-int pngparts_zread_parse(struct pngparts_z *prs, int mode){
+int pngparts_zread_parse(void *prs_v, int mode){
+  struct pngparts_z *prs = (struct pngparts_z *)prs_v;
   int result = prs->last_result;
   int state = prs->state;
   int shortpos = prs->shortpos;
@@ -115,7 +116,7 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
     case 2: /*data processing callback */
       {
         result = (*prs->cb.one_cb)(prs->cb.cb_data,ch,
-              &pngparts_zread_put_cb,prs);
+              prs,&pngparts_zread_put_cb);
         if (result == PNGPARTS_API_DONE){
           state = 3;
           shortpos = 0;
@@ -171,7 +172,7 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
   }
   return result;
 }
-int pngparts_zread_put_cb(int ch, void* data){
+int pngparts_zread_put_cb(void* data, int ch){
   struct pngparts_z* prs = (struct pngparts_z*)data;
   if (prs->outpos < prs->outsize){
     unsigned char chc = (unsigned char)(ch&255);
@@ -183,8 +184,9 @@ int pngparts_zread_put_cb(int ch, void* data){
   }
 }
 int pngparts_zread_set_dictionary
-  (struct pngparts_z *prs, unsigned char const* ptr, int len)
+  (void* prs_v, unsigned char const* ptr, int len)
 {
+  struct pngparts_z *prs = (struct pngparts_z *)prs_v;
   if (prs->state == 1 && prs->shortpos == 4){
     int i;
     struct pngparts_z_adler32 check;
