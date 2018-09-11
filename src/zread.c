@@ -42,12 +42,23 @@ void pngparts_zread_init(struct pngparts_z *prs){
 void pngparts_zread_free(struct pngparts_z *prs){
   return;
 }
+void pngparts_zread_assign_api
+  (struct pngparts_api_z * dst, struct pngparts_z * src)
+{
+  dst->cb_data = src;
+  dst->churn_cb = pngparts_zread_parse;
+  dst->input_done_cb = pngparts_z_input_done;
+  dst->output_left_cb = pngparts_z_output_left;
+  dst->set_dict_cb = pngparts_zread_set_dictionary;
+  dst->set_input_cb = pngparts_z_setup_input;
+  dst->set_output_cb = pngparts_z_setup_output;
+}
 int pngparts_zread_parse(void *prs_v, int mode){
   struct pngparts_z *prs = (struct pngparts_z *)prs_v;
   int result = prs->last_result;
   int state = prs->state;
   int shortpos = prs->shortpos;
-  int sticky_finish = ((mode&PNGPARTS_ZREAD_FINISH) != 0);
+  int sticky_finish = ((mode&PNGPARTS_API_Z_FINISH) != 0);
   if (result == PNGPARTS_API_OVERFLOW){
     if (prs->outpos < prs->outsize)
       result = PNGPARTS_API_OK;
