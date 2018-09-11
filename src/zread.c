@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int pngparts_zread_put_cb(int ch, void* prs);
+static int pngparts_zread_put_cb(void* prs, int ch);
 static unsigned long int pngparts_zread_get32(unsigned char const* );
 
 unsigned long int pngparts_zread_get32(unsigned char const* b){
@@ -35,17 +35,15 @@ void pngparts_zread_init(struct pngparts_z *prs){
   prs->outpos = 0;
   prs->outsize = 0;
   prs->flags_tf = 0;
-  prs->cb_data = NULL;
-  prs->start_cb = NULL;
-  prs->one_cb = NULL;
-  prs->finish_cb = NULL;
+  prs->cb = pngparts_api_flate_empty();
   prs->last_result = 0;
   return;
 }
 void pngparts_zread_free(struct pngparts_z *prs){
   return;
 }
-int pngparts_zread_parse(struct pngparts_z *prs, int mode){
+int pngparts_zread_parse(void *prs_v, int mode){
+  struct pngparts_z *prs = (struct pngparts_z *)prs_v;
   int result = prs->last_result;
   int state = prs->state;
   int shortpos = prs->shortpos;
@@ -83,9 +81,10 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
           if (prs->header.fcheck%31 != pngparts_z_header_check(prs->header)%31){
             result = PNGPARTS_API_BAD_CHECK;
             break;
-          } else if (prs->start_cb == NULL
-          ||  (*prs->start_cb)(prs->header.fdict, prs->header.flevel,
-                prs->header.cm, prs->header.cinfo,prs->cb_data) != 0)
+          } else if (prs->cb.start_cb == NULL
+          ||  (*prs->cb.start_cb)(prs->cb.cb_data,
+                prs->header.fdict,prs->header.flevel,prs->header.cm,
+                prs->header.cinfo) != 0)
           {
             result = PNGPARTS_API_UNSUPPORTED;
           } else if (prs->header.fdict){
@@ -116,8 +115,8 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
       }break;
     case 2: /*data processing callback */
       {
-        result = (*prs->one_cb)(ch,prs->cb_data,
-              &pngparts_zread_put_cb,prs);
+        result = (*prs->cb.one_cb)(prs->cb.cb_data,ch,
+              prs,&pngparts_zread_put_cb);
         if (result == PNGPARTS_API_DONE){
           state = 3;
           shortpos = 0;
@@ -137,7 +136,7 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
           if (pngparts_z_adler32_tol(prs->check) != stream_chk){
             result = PNGPARTS_API_BAD_SUM;
           } else {
-            result = (*prs->finish_cb)(prs->cb_data);
+            result = (*prs->cb.finish_cb)(prs->cb.cb_data);
             if (result >= PNGPARTS_API_OK){
               shortpos = 0;
               result = PNGPARTS_API_DONE;
@@ -173,7 +172,7 @@ int pngparts_zread_parse(struct pngparts_z *prs, int mode){
   }
   return result;
 }
-int pngparts_zread_put_cb(int ch, void* data){
+int pngparts_zread_put_cb(void* data, int ch){
   struct pngparts_z* prs = (struct pngparts_z*)data;
   if (prs->outpos < prs->outsize){
     unsigned char chc = (unsigned char)(ch&255);
@@ -185,8 +184,9 @@ int pngparts_zread_put_cb(int ch, void* data){
   }
 }
 int pngparts_zread_set_dictionary
-  (struct pngparts_z *prs, unsigned char const* ptr, int len)
+  (void* prs_v, unsigned char const* ptr, int len)
 {
+  struct pngparts_z *prs = (struct pngparts_z *)prs_v;
   if (prs->state == 1 && prs->shortpos == 4){
     int i;
     struct pngparts_z_adler32 check;
@@ -202,9 +202,9 @@ int pngparts_zread_set_dictionary
     } else {
       /* apply the dictionary */
       int result = PNGPARTS_API_OK;
-      if (prs->dict_cb != NULL){
+      if (prs->cb.dict_cb != NULL){
         for (i = 0; i < len && result == PNGPARTS_API_OK; ++i){
-          result = (*prs->dict_cb)(ptr[i]&255, prs->cb_data);
+          result = (*prs->cb.dict_cb)(prs->cb.cb_data, ptr[i]&255);
         }
       }
       if (result == PNGPARTS_API_OK){

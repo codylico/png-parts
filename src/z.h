@@ -46,58 +46,13 @@ struct pngparts_z_adler32 {
   unsigned long int s2;
 };
 
-/*
- * Start callback.
- * - fdict dictionary
- * - flevel compression level
- * - cm compression method
- * - cinfo compression information
- * @return OK if the callback supports the stream,
- *   or UNSUPPORTED otherwise
- */
-typedef int (*pngparts_z_start_cb)
-  ( short int fdict, short int flevel, short int cm, short int cinfo,
-    void* data);
-/*
- * Dictionary byte callback.
- * - ch byte, or -1 for repeat bytes
- * - data user data
- * @return OK, or UNSUPPORTED if preset dictionaries are not supported
- */
-typedef int (*pngparts_z_dict_cb)(int ch, void* data);
-/*
- * Byte callback.
- * - ch byte, or -1 for repeat bytes
- * - data user data
- * - put_cb callback for putting output bytes (to return 0 on
- *     success or OVERFLOW on overflow)
- * - put_data data to pass to put callback
- * @return OK, or OVERFLOW if the output buffer is too full,
- *   or DONE at the end of the bit stream; return other negative on error
- */
-typedef int (*pngparts_z_one_cb)
-  (int ch, void *data, int(*put_cb)(int,void*), void* put_data);
-/*
- * Finish callback.
- * - data user data
- * @return zero, or EOF if the callback expected more data
- */
-typedef int (*pngparts_z_finish_cb)(void* data);
 
 /*
  * Base structure for zlib processors.
  */
 struct pngparts_z {
-  /* callback data */
-  void* cb_data;
-  /* start callback */
-  pngparts_z_start_cb start_cb;
-  /* dictionary callback */
-  pngparts_z_dict_cb dict_cb;
-  /* bit callback */
-  pngparts_z_one_cb one_cb;
-  /* finish callback */
-  pngparts_z_finish_cb finish_cb;
+  /* callback information */
+  struct pngparts_api_flate cb;
   /* reader state */
   short state;
   /* the stream header */
@@ -193,49 +148,44 @@ struct pngparts_z_adler32 pngparts_z_adler32_accum
 
 /*
  * Setup an input buffer for next use.
- * - reader reader
+ * - zs zlib stream struct (struct pngparts_z)
  * - inbuf input buffer
  * - insize amount of data to input
  */
 PNGPARTS_API
 void pngparts_z_setup_input
-  (struct pngparts_z *reader, void* inbuf, int insize);
+  (void *zs, void* inbuf, int insize);
 /*
  * Setup an output buffer for next use.
- * - reader reader
+ * - zs zlib stream struct (struct pngparts_z)
  * - outbuf output buffer
  * - outsize amount of space available for output
  */
 PNGPARTS_API
 void pngparts_z_setup_output
-  (struct pngparts_z *reader, void* outbuf, int outsize);
+  (void *zs, void* outbuf, int outsize);
 /*
  * Check if the reader has used up all the latest input.
- * - reader reader
+ * - zs zlib stream struct (struct pngparts_z)
  * @return nonzero if the input is used up
  */
 PNGPARTS_API
-int pngparts_z_input_done(struct pngparts_z const* reader);
+int pngparts_z_input_done(void const* zs);
 /*
  * Check how much output bytes wait for you.
- * - reader reader
+ * - zs zlib stream struct (struct pngparts_z)
  * @return byte count for the output bytes
  */
 PNGPARTS_API
-int pngparts_z_output_left(struct pngparts_z const* reader);
+int pngparts_z_output_left(void const* zs);
 /*
  * Set the compression callbacks.
  * - base the reader
- * - cb_data static user data
- * - start_cb constructor for callback data
- * - bit_cb bit fiddler
- * - finish_cb destructor for callback data
+ * - cb callback information structure
  */
 PNGPARTS_API
 void pngparts_z_set_cb
-  ( struct pngparts_z *base, void *cb_data,
-    pngparts_z_start_cb start_cb, pngparts_z_dict_cb dict_cb,
-    pngparts_z_one_cb one_cb, pngparts_z_finish_cb finish_cb);
+  ( struct pngparts_z *base, struct pngparts_api_flate const* cb);
 
 #ifdef __cplusplus
 };

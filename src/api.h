@@ -83,6 +83,156 @@ enum pngparts_api_error {
   /* the stream is done; quit pushing data */
   PNGPARTS_API_DONE = 2
 };
+/*
+ * Expectation mode for zlib stream processing.
+ */
+enum pngparts_api_z_mode {
+  /* normal reading */
+  PNGPARTS_API_Z_NORMAL = 0,
+  /* treat it like it's the end */
+  PNGPARTS_API_Z_FINISH = 1
+};
+
+
+/*
+ * Start callback.
+ * - cb_data flate callback data
+ * - fdict dictionary
+ * - flevel compression level
+ * - cm compression method
+ * - cinfo compression information
+ * @return OK if the callback supports the stream,
+ *   or UNSUPPORTED otherwise
+ */
+typedef int (*pngparts_api_flate_start_cb)
+  ( void* cb_data,
+    short int fdict, short int flevel, short int cm, short int cinfo);
+/*
+ * Dictionary byte callback.
+ * - cb_data flate callback data
+ * - ch byte, or -1 for repeat bytes
+ * @return OK, or UNSUPPORTED if preset dictionaries are not supported
+ */
+typedef int (*pngparts_api_flate_dict_cb)(void* cb_data, int ch);
+/*
+ * Put an output byte.
+ * - zout callback data
+ * - ch byte to put (0-255)
+ * @return OK on success, OVERFLOW if no more room for bytes
+ */
+typedef int (*pngparts_api_flate_put_cb)(void* zout, int ch);
+/*
+ * Byte callback.
+ * - cb_data flate callback data
+ * - ch byte, or -1 for repeat bytes
+ * - put_data data to pass to put callback
+ * - put_cb callback for putting output bytes
+ * @return OK, or OVERFLOW if the output buffer is too full,
+ *   or DONE at the end of the bit stream; return other negative on error
+ */
+typedef int (*pngparts_api_flate_one_cb)
+  ( void* cb_data, int ch, void* put_data, pngparts_api_flate_put_cb put_cb);
+/*
+ * Finish callback.
+ * - cb_data flate callback data
+ * @return zero, or EOF if the callback expected more data
+ */
+typedef int (*pngparts_api_flate_finish_cb)(void* cb_data);
+/*
+ * Interface for DEFLATE algorithms
+ */
+struct pngparts_api_flate {
+  /* callback data */
+  void* cb_data;
+  /* start callback */
+  pngparts_api_flate_start_cb start_cb;
+  /* dictionary callback */
+  pngparts_api_flate_dict_cb dict_cb;
+  /* bit callback */
+  pngparts_api_flate_one_cb one_cb;
+  /* finish callback */
+  pngparts_api_flate_finish_cb finish_cb;
+};
+/*
+ * Create an empty DEFLATE callback interface.
+ * @return an empty interface structure
+ */
+struct pngparts_api_flate pngparts_api_flate_empty(void);
+
+
+/*
+ * Setup an input buffer for next use.
+ * - zs zlib stream struct (struct pngparts_z)
+ * - inbuf input buffer
+ * - insize amount of data to input
+ */
+typedef void (*pngparts_api_z_set_input_cb)
+  (void *zs, void* inbuf, int insize);
+/*
+ * Setup an output buffer for next use.
+ * - zs zlib stream struct (struct pngparts_z)
+ * - outbuf output buffer
+ * - outsize amount of space available for output
+ */
+typedef void (*pngparts_api_z_set_output_cb)
+  (void *zs, void* outbuf, int outsize);
+/*
+ * Check if the reader has used up all the latest input.
+ * - zs zlib stream struct (struct pngparts_z)
+ * @return nonzero if the input is used up
+ */
+typedef int (*pngparts_api_z_input_done_cb)(void const* zs);
+/*
+ * Check how much output bytes wait for you.
+ * - zs zlib stream struct (struct pngparts_z)
+ * @return byte count for the output bytes
+ */
+typedef int (*pngparts_api_z_output_left_cb)(void const* zs);
+/*
+ * Process a part of a stream.
+ * - zs zlib stream struct (struct pngparts_z)
+ * - mode stream expectation mode (enum pngparts_api_z_mode)
+ * @return OK on success, DONE at end of stream, EOF
+ *   on unexpected end of stream
+ */
+typedef int (*pngparts_api_z_churn_cb)(void* zs, int mode);
+/*
+ * Try to set the dictionary for use.
+ * - zs zlib stream struct
+ * - ptr bytes of the dictionary
+ * - len dictionary length in bytes
+ * @return OK if the dictionary matches the stream's
+ *   dictionary checksum, WRONG_DICT if the dictionary match fails,
+ *   or BAD_STATE if called before the dictionary checksum is
+ *   available
+ */
+typedef int (*pngparts_api_z_set_dict_cb)
+  (void* zs, unsigned char const* ptr, int len);
+/*
+ * Interface for DEFLATE algorithms
+ */
+struct pngparts_api_z {
+  /* callback data */
+  void* cb_data;
+  /* start callback */
+  pngparts_api_z_set_input_cb set_input_cb;
+  /* dictionary callback */
+  pngparts_api_z_set_output_cb set_output_cb;
+  /* bit callback */
+  pngparts_api_z_input_done_cb input_done_cb;
+  /* finish callback */
+  pngparts_api_z_output_left_cb output_left_cb;
+  /* set dictionary callback */
+  pngparts_api_z_set_dict_cb set_dict_cb;
+  /* processing callback */
+  pngparts_api_z_churn_cb churn_cb;
+};
+/*
+ * Create an empty DEFLATE callback interface.
+ * @return an empty interface structure
+ */
+struct pngparts_api_z pngparts_api_z_empty(void);
+
 
 /*
  * API information as an integer
