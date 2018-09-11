@@ -19,15 +19,6 @@ extern "C" {
 
 struct pngparts_zread;
 
-/*
- * Reading modes
- */
-enum pngparts_zread_mode {
-  /* normal reading */
-  PNGPARTS_ZREAD_NORMAL = 0,
-  /* treat it like it's the end */
-  PNGPARTS_ZREAD_FINISH = 1
-};
 
 /*
  * Initialize a stream reader.
@@ -41,6 +32,14 @@ void pngparts_zread_init(struct pngparts_z *prs);
  */
 PNGPARTS_API
 void pngparts_zread_free(struct pngparts_z *prs);
+/*
+ * Assign the callbacks for a zlib stream reader.
+ * - dst destination API interface
+ * - src stream reader
+ */
+PNGPARTS_API
+void pngparts_zread_assign_api
+  (struct pngparts_api_z *dst, struct pngparts_z *src);
 /*
  * Parse a part of a stream.
  * - zs zlib stream structure
