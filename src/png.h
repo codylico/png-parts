@@ -89,6 +89,8 @@ struct pngparts_png {
   int pos;
   /* next error found while reading */
   int last_result;
+  /* chunk size */
+  unsigned long int chunk_size;
 };
 
 

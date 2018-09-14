@@ -21,6 +21,7 @@ int pngparts_api_info(void){
 
 char const* pngparts_api_strerror(int result){
   switch (result){
+  case PNGPARTS_API_BAD_CRC: return "bad CRC32 checksum";
   case PNGPARTS_API_BAD_SIGNATURE: return "bad file signature";
   case PNGPARTS_API_WRONG_DICT: return "dictionary given was wrong";
   case PNGPARTS_API_BAD_CODE_LENGTH: return "bad code length";

@@ -42,6 +42,8 @@ enum pngparts_api_flag {
  * Errors
  */
 enum pngparts_api_error {
+  /* CRC mismatch */
+  PNGPARTS_API_BAD_CRC = -18,
   /* signature mismatch */
   PNGPARTS_API_BAD_SIGNATURE = -17,
   /* dictionary given was wrong */
