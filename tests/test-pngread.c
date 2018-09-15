@@ -10,8 +10,6 @@
  */
 
 #include "../src/pngread.h"
-#include "../src/zread.h"
-#include "../src/inflate.h"
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
@@ -55,8 +53,6 @@ int main(int argc, char**argv) {
   FILE *to_read = NULL, *to_write = NULL;
   char const* in_fname = NULL, *out_fname = NULL;
   struct pngparts_png parser;
-  struct pngparts_z reader;
-  struct pngparts_flate inflater;
   int help_tf = 0;
   int result = 0;
   struct test_image img = { 0,0,NULL };
@@ -111,8 +107,6 @@ int main(int argc, char**argv) {
   }
   /* parse the zlib stream */
   pngparts_pngread_init(&parser);
-  pngparts_zread_init(&reader);
-  pngparts_inflate_init(&inflater);
   {
     struct pngparts_api_image img_api;
     img_api.cb_data = &img;
@@ -122,9 +116,6 @@ int main(int argc, char**argv) {
   /*pngparts_png_set_z_cb(&parser, &reader,
     &pngparts_z_touch_input, &pngparts_z_touch_output,
     &pngparts_z_churn);*/
-  pngparts_z_set_cb(&reader, &inflater,
-    &pngparts_inflate_start, &pngparts_inflate_dict,
-    &pngparts_inflate_one, &pngparts_inflate_finish);
   do {
     unsigned char inbuf[256];
     size_t readlen;
@@ -138,8 +129,6 @@ int main(int argc, char**argv) {
     }
     if (result < 0) break;
   } while (0);
-  pngparts_inflate_free(&inflater);
-  pngparts_zread_free(&reader);
   pngparts_pngread_free(&parser);
   /* close */
   free(img.bytes);
