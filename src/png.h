@@ -30,9 +30,9 @@ struct pngparts_png_crc32 {
  */
 struct pngparts_png_header {
   /* width of the image */
-  int width;
+  long int width;
   /* height of the image */
-  int height;
+  long int height;
   /* bit depth per sample (8 with RGBA = 32 bpp) */
   short int bit_depth;
   /* color type bits (6 = RGBA) */
@@ -46,30 +46,9 @@ struct pngparts_png_header {
 };
 
 /*
- * Callback for starting image processing.
- * - width image width
- * - height image height
- * - bit_depth sample depth
- * - color_type PNG color bit field
- * - compression method of compression (should be zero)
- * - filter filter method (should be zero)
- * - interlace interlace method (should be zero or one)
- * - data callback data
- * @return OK if the header good for the image, UNSUPPORTED
- *   otherwise
- */
-typedef int (*pngparts_png_start_cb)
-  ( int width, int height, short bit_depth, short color_type, short compression,
-    short filter, short interlace, void* data);
-
-/*
  * PNG stream base
  */
 struct pngparts_png {
-  /* callback data */
-  void* cb_data;
-  /* start callback */
-  pngparts_png_start_cb start_cb;
   /* stream state */
   short state;
   /* short position */
@@ -77,6 +56,7 @@ struct pngparts_png {
   /* buffer for short byte chunks */
   unsigned char shortbuf[15];
   /*
+   * 8 - IHDR crossed
    */
   unsigned char flags_tf;
   /* the current checksum */
@@ -91,6 +71,10 @@ struct pngparts_png {
   int last_result;
   /* chunk size */
   unsigned long int chunk_size;
+  /* header */
+  struct pngparts_png_header header;
+  /* image callback */
+  struct pngparts_api_image img_cb;
 };
 
 
@@ -138,6 +122,14 @@ void pngparts_png_buffer_setup
  */
 PNGPARTS_API
 int pngparts_png_buffer_done(struct pngparts_png const* p);
+/*
+ * Set the image callback.
+ * - p PNG structure
+ * - img_cb image callback structure
+ */
+PNGPARTS_API
+void pngparts_png_set_image_cb
+  (struct pngparts_png* p, struct pngparts_api_image const* img_cb);
 
 #ifdef __cplusplus
 };

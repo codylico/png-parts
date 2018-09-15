@@ -15,6 +15,41 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <stdlib.h>
+#include "test-pngread.h"
+
+struct test_image {
+  int width;
+  int height;
+  unsigned char* bytes;
+};
+static int test_image_header
+  ( void* img, long int width, long int height, short bit_depth,
+    short color_type, short compression, short filter, short interlace);
+int test_image_header
+  ( void* img_ptr, long int width, long int height, short bit_depth,
+    short color_type, short compression, short filter, short interlace)
+{
+  struct test_image *img = (struct test_image*)img_ptr;
+  fprintf(stdout, "{\"image info\":{\n"
+    "  \"width\": %li,\n"
+    "  \"height\": %li,\n"
+    "  \"bit depth\": %i\n"
+    "  \"color type\": %i\n"
+    "  \"compression\": %i\n"
+    "  \"filter\": %i\n"
+    "  \"interlace\": %i\n}\n",
+    width, height, bit_depth, color_type, compression, filter, interlace
+  );
+  if (width > 2000 || height > 2000) return PNGPARTS_API_UNSUPPORTED;
+  void* bytes = malloc(width*height * 4);
+  if (bytes == NULL) return PNGPARTS_API_UNSUPPORTED;
+  img->width = (int)width;
+  img->height = (int)height;
+  img->bytes = (unsigned char*)bytes;
+  memset(bytes, 55, width*height * 4);
+  return PNGPARTS_API_OK;
+}
 
 int main(int argc, char**argv) {
   FILE *to_read = NULL, *to_write = NULL;
@@ -24,6 +59,7 @@ int main(int argc, char**argv) {
   struct pngparts_flate inflater;
   int help_tf = 0;
   int result = 0;
+  struct test_image img = { 0,0,NULL };
   {
     int argi;
     for (argi = 1; argi < argc; ++argi) {
@@ -77,6 +113,12 @@ int main(int argc, char**argv) {
   pngparts_pngread_init(&parser);
   pngparts_zread_init(&reader);
   pngparts_inflate_init(&inflater);
+  {
+    struct pngparts_api_image img_api;
+    img_api.cb_data = &img;
+    img_api.start_cb = &test_image_header;
+    pngparts_png_set_image_cb(&parser, &img_api);
+  }
   /*pngparts_png_set_z_cb(&parser, &reader,
     &pngparts_z_touch_input, &pngparts_z_touch_output,
     &pngparts_z_churn);*/
@@ -100,6 +142,7 @@ int main(int argc, char**argv) {
   pngparts_zread_free(&reader);
   pngparts_pngread_free(&parser);
   /* close */
+  free(img.bytes);
   if (to_write != stdout) fclose(to_write);
   if (to_read != stdin) fclose(to_read);
   fflush(NULL);

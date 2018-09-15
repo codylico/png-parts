@@ -42,6 +42,10 @@ enum pngparts_api_flag {
  * Errors
  */
 enum pngparts_api_error {
+  /* IHDR damaged or invalid */
+  PNGPARTS_API_BAD_HDR = -20,
+  /* IHDR missing from start of stream */
+  PNGPARTS_API_MISSING_HDR = -19,
   /* CRC mismatch */
   PNGPARTS_API_BAD_CRC = -18,
   /* signature mismatch */
@@ -235,6 +239,33 @@ struct pngparts_api_z {
  */
 struct pngparts_api_z pngparts_api_z_empty(void);
 
+
+
+
+/*
+ * Callback for starting image processing.
+ * - img callback data
+ * - width image width
+ * - height image height
+ * - bit_depth sample depth
+ * - color_type PNG color bit field
+ * - compression method of compression (should be zero)
+ * - filter filter method (should be zero)
+ * - interlace interlace method (should be zero or one)
+ * @return OK if the header good for the image, UNSUPPORTED
+ *   otherwise
+ */
+typedef int (*pngparts_api_image_start_cb)
+  ( void* img, long int width, long int height, short bit_depth,
+    short color_type, short compression, short filter, short interlace);
+
+
+struct pngparts_api_image {
+  /* callback data */
+  void* cb_data;
+  /* image start callback */
+  pngparts_api_image_start_cb start_cb;
+};
 
 /*
  * API information as an integer

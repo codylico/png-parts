@@ -1,5 +1,6 @@
 
 #include "png.h"
+#include <string.h>
 
 static unsigned long int const pngparts_png_crc32_pre[256] = {
   /*   0 */
@@ -116,4 +117,10 @@ void pngparts_png_buffer_setup
 
 int pngparts_png_buffer_done(struct pngparts_png const * p){
   return p->pos == p->size || p->state == 4;
+}
+void pngparts_png_set_image_cb
+  (struct pngparts_png* p, struct pngparts_api_image const* img_cb)
+{
+  memcpy(&p->img_cb, img_cb, sizeof(*img_cb));
+  return;
 }

@@ -11,6 +11,11 @@
 
 #include "pngread.h"
 #include <string.h>
+#include <stdio.h>
+
+enum pngparts_pngread_flags {
+  PNGPARTS_PNGREAD_IHDR_FOUND = 8
+};
 
 static unsigned long int pngparts_pngread_get32(unsigned char const*);
 
@@ -26,6 +31,7 @@ void pngparts_pngread_init(struct pngparts_png* p) {
   p->check = pngparts_png_crc32_new();
   p->shortpos = 0;
   p->last_result = 0;
+  p->flags_tf = 0;
   return;
 }
 void pngparts_pngread_free(struct pngparts_png* p) {
@@ -94,7 +100,17 @@ int pngparts_pngread_parse(struct pngparts_png* p) {
               p->check = pngparts_png_crc32_accum(p->check, chunk_name[i]);
             }
           }
-          if (memcmp(chunk_name, "\x49\x45\x4E\x44", 4) == 0) {
+          if ((p->flags_tf & PNGPARTS_PNGREAD_IHDR_FOUND) == 0) {
+            if (memcmp(chunk_name, "\x49\x48\x44\x52", 4) == 0) {
+              if (p->chunk_size == 13) {
+                state = 7;
+                shortpos = 0;
+                p->flags_tf |= PNGPARTS_PNGREAD_IHDR_FOUND;
+              } else result = PNGPARTS_API_BAD_HDR;
+            } else {
+              result = PNGPARTS_API_MISSING_HDR;
+            }
+          } else if (memcmp(chunk_name, "\x49\x45\x4E\x44", 4) == 0) {
             /*end of PNG stream */
             if (p->chunk_size > 0) state = 2;
             else state = 3;
@@ -119,7 +135,7 @@ int pngparts_pngread_parse(struct pngparts_png* p) {
     case 3: /* IEND CRC */
       {
         if (shortpos < 4 && ch >= 0) {
-          p->shortbuf[shortpos] = (unsigned char)(ch & 255);
+          p->shortbuf[shortpos] = (unsigned char)ch;
           shortpos += 1;
         }
         if (shortpos >= 4) {
@@ -151,10 +167,10 @@ int pngparts_pngread_parse(struct pngparts_png* p) {
           state = 6;
         }
       }break;
-    case 6: /* unknown CRC */
+    case 6: /* other CRC */
       {
         if (shortpos < 4 && ch >= 0) {
-          p->shortbuf[shortpos] = (unsigned char)(ch & 255);
+          p->shortbuf[shortpos] = (unsigned char)ch;
           shortpos += 1;
         }
         if (shortpos >= 4) {
@@ -169,6 +185,36 @@ int pngparts_pngread_parse(struct pngparts_png* p) {
             result = PNGPARTS_API_OK;
             state = 1;
           }
+        }
+      }break;
+    case 7: /* IHDR handling */
+      {
+        if (shortpos < 13 && ch >= 0) {
+          p->check = pngparts_png_crc32_accum(p->check, ch);
+          p->shortbuf[shortpos] = (unsigned char)ch;
+          shortpos += 1;
+        }
+        if (shortpos >= 13) {
+          /* extract the header */
+          p->header.width = pngparts_pngread_get32(p->shortbuf + 0);
+          p->header.height = pngparts_pngread_get32(p->shortbuf + 4);
+          p->header.bit_depth = (int)*(p->shortbuf + 8);
+          p->header.color_type = (int)*(p->shortbuf + 9);
+          p->header.compression = (int)*(p->shortbuf + 10);
+          p->header.filter = (int)*(p->shortbuf + 11);
+          p->header.interlace = (int)*(p->shortbuf + 12);
+          /* report the header */
+          if (p->img_cb.start_cb != NULL) {
+            result = (*p->img_cb.start_cb)(p->img_cb.cb_data,
+              p->header.width, p->header.height,
+              p->header.bit_depth, p->header.color_type,
+              p->header.compression, p->header.filter,
+              p->header.interlace);
+            if (result != PNGPARTS_API_OK) break;
+          }
+          /* check the CRC32 */
+          state = 6;
+          shortpos = 0;
         }
       }break;
     default:
