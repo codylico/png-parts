@@ -20,6 +20,7 @@ struct test_image {
   int width;
   int height;
   unsigned char* bytes;
+  FILE* outfile;
 };
 static int test_image_header
   ( void* img, long int width, long int height, short bit_depth,
@@ -33,7 +34,7 @@ int test_image_header
     short color_type, short compression, short filter, short interlace)
 {
   struct test_image *img = (struct test_image*)img_ptr;
-  fprintf(stdout, "{\"image info\":{\n"
+  fprintf(stderr, "{\"image info\":{\n"
     "  \"width\": %li,\n"
     "  \"height\": %li,\n"
     "  \"bit depth\": %i\n"
@@ -64,6 +65,18 @@ void test_image_recv_pixel
   pixel[2] = blue / 257;
   pixel[3] = alpha / 257;
   return;
+}
+void test_image_put_ppm(struct test_image* img) {
+  int x, y;
+  fprintf(img->outfile, "P3\n%i %i\n255\n",
+    img->width, img->height);
+  for (y = 0; y < img->height; ++y) {
+    for (x = 0; x < img->width; ++x) {
+      unsigned char *const pixel = (&img->bytes[(y*img->width + x) * 4]);
+      fprintf(img->outfile, "%i %i %i\n",
+        pixel[0], pixel[1], pixel[2]);
+    }
+  }
 }
 
 int main(int argc, char**argv) {
@@ -131,6 +144,7 @@ int main(int argc, char**argv) {
     img_api.put_cb = &test_image_recv_pixel;
     pngparts_png_set_image_cb(&parser, &img_api);
   }
+  img.outfile = to_write;
   /*pngparts_png_set_z_cb(&parser, &reader,
     &pngparts_z_touch_input, &pngparts_z_touch_output,
     &pngparts_z_churn);*/
@@ -148,6 +162,9 @@ int main(int argc, char**argv) {
     if (result < 0) break;
   } while (0);
   pngparts_pngread_free(&parser);
+  /* output to PPM */ {
+    test_image_put_ppm(&img);
+  }
   /* close */
   free(img.bytes);
   if (to_write != stdout) fclose(to_write);
