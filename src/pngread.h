@@ -38,6 +38,15 @@ void pngparts_pngread_free(struct pngparts_png* p);
 PNGPARTS_API
 int pngparts_pngread_parse(struct pngparts_png* p);
 
+/*
+ * Assign an API for reading IDAT chunks.
+ * - cb chunk callback
+ * - z zlib stream reader
+ */
+PNGPARTS_API
+int pngparts_pngread_assign_idat_api
+  (struct pngparts_png_chunk_cb* cb, struct pngparts_api_z const* z);
+
 #ifdef __cplusplus
 };
 #endif /*__cplusplus*/

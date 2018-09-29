@@ -329,3 +329,517 @@ int pngparts_pngread_parse(struct pngparts_png* p) {
   }
   return result;
 }
+
+/*BEGIN IDAT*/
+struct pngparts_pngread_idat {
+  int level;
+  int pixel_size;
+  unsigned long int line_width;
+  unsigned long int line_height;
+  long int x;
+  long int y;
+  struct pngparts_api_z z;
+  /* amount of next pixel space remaining */
+  int next_left;
+  /* current and same-line previous pixel data */
+  unsigned char nextbuf[16];
+  /* previous scan line */
+  unsigned char *outbuf;
+  unsigned long int outsize;
+  unsigned long int outpos;
+  int filter_mode;
+  unsigned long int byte_count;
+};
+static int pngparts_pngread_start_line
+  (struct pngparts_png*, struct pngparts_pngread_idat*);
+static int pngparts_pngread_idat_msg
+  (struct pngparts_png*, void* cb_data, struct pngparts_png_message* msg);
+static void pngparts_pngread_idat_shift
+  (struct pngparts_pngread_idat*, int shift);
+static void pngparts_pngread_idat_add
+  (struct pngparts_pngread_idat*, int shift);
+static void pngparts_pngread_idat_submit
+  (struct pngparts_png*, struct pngparts_pngread_idat* idat);
+
+void pngparts_pngread_idat_submit
+  (struct pngparts_png* p, struct pngparts_pngread_idat* idat)
+{
+  int const color_type = p->header.color_type;
+  struct pngparts_api_image img;
+  pngparts_png_get_image_cb(p, &img);
+  static const int multiplier[9] =
+    { 0, 0xffff, 0x5555, 0x2492, 0x1111, 0, 0, 0, 0x0101 };
+  switch (idat->pixel_size) {
+  case 1: /* either L/1 or index/1 */
+  case 2: /* either L/2 or index/2 */
+  case 4: /* either L/4 or index/4 */
+  case 8: /* either L/8 or index/8 */
+    {
+      int i, count = 8/idat->pixel_size;
+      int mask = (1 << idat->pixel_size) - 1;
+      long int nx, ny;
+      pngparts_png_adam7_reverse_xy(idat->level, &nx, &ny, idat->x, idat->y);
+      for (i = 0; i < count; ++i) {
+        if (nx < p->header.width) {
+          unsigned int const bit_string =
+            (idat->nextbuf[8] >> (i*idat->pixel_size))&mask;
+          switch (color_type) {
+          case 0: /* L/i */
+            {
+              unsigned int const lumin
+                = bit_string*multiplier[idat->pixel_size];
+              (*img.put_cb)(img.cb_data, nx, ny, lumin, lumin, lumin, 65535);
+            }break;
+          case 3: /* index/i */
+            {
+              unsigned int red, green, blue, alpha;
+              /* TODO implement the palette */
+              /*pngparts_png_get_palette_color
+                (p, bit_string, &red, &green, &blue, &alpha);*/
+              /* TODO drop */ {
+                red = ((bit_string >> 5)&7) * multiplier[3];
+                green = ((bit_string >> 3) & 3) * multiplier[2];
+                blue = (bit_string & 7) * multiplier[3];
+                alpha = 65535;
+              }
+              (*img.put_cb)(img.cb_data, nx, ny, red, green, blue, alpha);
+            }break;
+          }
+          idat->x += 1;
+        }
+      }
+      pngparts_pngread_idat_add(idat, 1);
+      pngparts_pngread_idat_shift(idat, 1);
+    }break;
+  case 16: /* either L/16, LA/8 */
+    {
+      long int nx, ny;
+      pngparts_png_adam7_reverse_xy(idat->level, &nx, &ny, idat->x, idat->y);
+      if (nx < p->header.width) {
+        switch (color_type) {
+        case 0: /* L/16 */
+          {
+            unsigned int lumin;
+            lumin = (idat->nextbuf[8] << 8) | (idat->nextbuf[9]);
+            (*img.put_cb)(img.cb_data, nx, ny, lumin, lumin, lumin, 65535);
+          }break;
+        case 4: /* LA/8 */
+          {
+            unsigned int lumin, alpha;
+            lumin = (idat->nextbuf[8] << 8) | (idat->nextbuf[8]);
+            alpha = (idat->nextbuf[9] << 8) | (idat->nextbuf[9]);
+            (*img.put_cb)(img.cb_data, nx, ny, lumin, lumin, lumin, alpha);
+          }break;
+        }
+      }
+      pngparts_pngread_idat_add(idat, 2);
+      pngparts_pngread_idat_shift(idat, 2);
+      idat->x += 1;
+    }break;
+  case 24: /* either RGB/8 */
+    {
+      long int nx, ny;
+      pngparts_png_adam7_reverse_xy(idat->level, &nx, &ny, idat->x, idat->y);
+      if (nx < p->header.width) {
+        unsigned int red, green, blue;
+        red = (idat->nextbuf[8] << 8) | (idat->nextbuf[8]);
+        green = (idat->nextbuf[9] << 8) | (idat->nextbuf[9]);
+        blue = (idat->nextbuf[10] << 8) | (idat->nextbuf[10]);
+        (*img.put_cb)(img.cb_data, nx, ny, red, green, blue, 65535);
+      }
+      pngparts_pngread_idat_add(idat, 3);
+      pngparts_pngread_idat_shift(idat, 3);
+      idat->x += 1;
+    }break;
+  case 32: /* either LA/16 or RGBA/8 */
+    {
+      long int nx, ny;
+      pngparts_png_adam7_reverse_xy(idat->level, &nx, &ny, idat->x, idat->y);
+      if (nx < p->header.width) {
+        switch (color_type) {
+        case 4: /* LA/16 */
+          {
+            unsigned int lumin, alpha;
+            lumin = (idat->nextbuf[8] << 8) | (idat->nextbuf[9]);
+            alpha = (idat->nextbuf[10] << 8) | (idat->nextbuf[11]);
+            (*img.put_cb)(img.cb_data, nx, ny, lumin, lumin, lumin, alpha);
+          }break;
+        case 6: /* RGBA/8 */
+          {
+            unsigned int red, green, blue, alpha;
+            red = (idat->nextbuf[8] << 8) | (idat->nextbuf[8]);
+            green = (idat->nextbuf[9] << 8) | (idat->nextbuf[9]);
+            blue = (idat->nextbuf[10] << 8) | (idat->nextbuf[10]);
+            alpha = (idat->nextbuf[11] << 8) | (idat->nextbuf[11]);
+            (*img.put_cb)(img.cb_data, nx, ny, red, green, blue, alpha);
+          }break;
+        }
+      }
+      pngparts_pngread_idat_add(idat, 4);
+      pngparts_pngread_idat_shift(idat, 4);
+      idat->x += 1;
+    }break;
+  case 48: /* only RGB/16 */
+    {
+      long int nx, ny;
+      pngparts_png_adam7_reverse_xy(idat->level, &nx, &ny, idat->x, idat->y);
+      if (nx < p->header.width) {
+        unsigned int red, green, blue;
+        red   = (idat->nextbuf[ 8] << 8) | (idat->nextbuf[ 9]);
+        green = (idat->nextbuf[10] << 8) | (idat->nextbuf[11]);
+        blue  = (idat->nextbuf[12] << 8) | (idat->nextbuf[13]);
+        (*img.put_cb)(img.cb_data, nx, ny, red, green, blue, 65535);
+      }
+      pngparts_pngread_idat_add(idat, 6);
+      pngparts_pngread_idat_shift(idat, 6);
+      idat->x += 1;
+    }break;
+  case 64: /* only RGBA/16 */
+    {
+      long int nx, ny;
+      pngparts_png_adam7_reverse_xy(idat->level, &nx, &ny, idat->x, idat->y);
+      if (nx < p->header.width) {
+        unsigned int red, green, blue, alpha;
+        red  = (idat->nextbuf[ 8] << 8) | (idat->nextbuf[ 9]);
+        green= (idat->nextbuf[10] << 8) | (idat->nextbuf[11]);
+        blue = (idat->nextbuf[12] << 8) | (idat->nextbuf[13]);
+        alpha= (idat->nextbuf[14] << 8) | (idat->nextbuf[15]);
+        (*img.put_cb)(img.cb_data, nx, ny, red, green, blue, alpha);
+      }
+      pngparts_pngread_idat_add(idat, 8);
+      pngparts_pngread_idat_shift(idat, 8);
+      idat->x += 1;
+    }break;
+  }
+}
+void pngparts_pngread_idat_shift(struct pngparts_pngread_idat* d, int shift) {
+  d->next_left += shift;
+  memmove(d->nextbuf, d->nextbuf + shift, 16 - shift);
+}
+void pngparts_pngread_idat_add(struct pngparts_pngread_idat* d, int shift) {
+  if (d->outpos >= shift) {
+    memcpy(d->outbuf + d->outpos - shift, d->nextbuf + 8 - shift, shift);
+  }
+  d->outpos += shift;
+}
+int pngparts_pngread_start_line
+  (struct pngparts_png* p, struct pngparts_pngread_idat* idat)
+{
+  /*compute line length*/
+  unsigned long int buffer_length;
+  {
+    unsigned long int line_length = idat->pixel_size;
+    switch (idat->level) {
+    case 0:
+      idat->line_width = p->header.width;
+      idat->line_height = p->header.height;
+      break;
+    case 7:
+      idat->line_width = p->header.width;
+      idat->line_height = p->header.height/2;
+      break;
+    case 6:
+      idat->line_width = (p->header.width / 2);
+      idat->line_height = (p->header.height+1) / 2;
+      break;
+    case 5:
+      idat->line_width = ((p->header.width + 1) / 2);
+      idat->line_height = (p->header.height +1)/ 4;
+      break;
+    case 4:
+      idat->line_width = ((p->header.width + 1) / 4);
+      idat->line_height = (p->header.height + 3) / 4;
+      break;
+    case 3:
+      idat->line_width = ((p->header.width + 3) / 4);
+      idat->line_height = (p->header.height + 3) / 8;
+      break;
+    case 2:
+      idat->line_width = ((p->header.width + 3) / 8);
+      idat->line_height = (p->header.height + 7) / 8;
+      break;
+    case 1:
+      idat->line_width = ((p->header.width + 7) / 8);
+      idat->line_height = (p->header.height + 7) / 8;
+      break;
+    }
+    /*fprintf(stderr, "pass %i: width %lu height %lu\n",
+      idat->level, idat->line_width, idat->line_height);*/
+    if (line_length == 0) {
+      return PNGPARTS_API_OVERFLOW;
+    }
+    line_length = idat->line_width*idat->pixel_size;
+    buffer_length = (line_length + 7) >> 3;
+  }
+  if (idat->outsize != buffer_length) {
+    /* resize the buffer */
+    unsigned char* new_buffer;
+    free(idat->outbuf);
+    idat->outbuf = NULL;
+    new_buffer = (unsigned char*)calloc(buffer_length, sizeof(unsigned char));
+    if (new_buffer == NULL) {
+      return PNGPARTS_API_MEMORY;
+    }
+    idat->outbuf = new_buffer;
+    idat->outsize = buffer_length;
+  } else {
+    memset(idat->outbuf, 0, idat->outsize * sizeof(unsigned char));
+  }
+  memset(idat->nextbuf, 0, 8*sizeof(unsigned char));
+  idat->outpos = 0;
+  idat->filter_mode = -1;
+  return PNGPARTS_API_OK;
+}
+int pngparts_pngread_idat_msg
+  (struct pngparts_png* p, void* cb_data, struct pngparts_png_message* msg)
+{
+  int result;
+  struct pngparts_pngread_idat *idat =
+    (struct pngparts_pngread_idat *)cb_data;
+  switch (msg->type) {
+  case PNGPARTS_PNG_M_READY:
+    {
+      result = PNGPARTS_API_OK;
+    }break;
+  case PNGPARTS_PNG_M_START:
+    {
+      if (idat->level == -1) {
+        idat->byte_count = 0;
+        /* get level */
+        if (p->header.interlace == 1) {
+          idat->level = 1;
+          result = PNGPARTS_API_OK;
+        } else if (p->header.interlace == 0) {
+          idat->level = 0;
+          result = PNGPARTS_API_OK;
+        } else {
+          result = PNGPARTS_API_UNSUPPORTED;
+          break;
+        }
+        /* compute the sample size in bytes */ {
+          switch (p->header.color_type) {
+          case 0: /* gray */
+          case 3: /* palette */
+            idat->pixel_size = p->header.bit_depth;
+            break;
+          case 4: /* gray alpha */
+            idat->pixel_size = p->header.bit_depth * 2;
+            break;
+          case 2: /* red green blue*/
+            idat->pixel_size = p->header.bit_depth * 3;
+            break;
+          case 6: /* red green blue alpha*/
+            idat->pixel_size = p->header.bit_depth * 4;
+            break;
+          }
+        }
+        /* prepare the line */{
+          int line_out = pngparts_pngread_start_line(p, idat);
+          if (line_out == PNGPARTS_API_OVERFLOW) {
+            /* give up */
+            idat->filter_mode = 5;
+            break;
+          }
+        }
+        idat->filter_mode = -1;
+        idat->next_left = 8;
+        idat->x = 0;
+        idat->y = 0;
+      } else result = PNGPARTS_API_OK;
+    }break;
+  case PNGPARTS_PNG_M_GET:
+    {
+      int z_result;
+      int gold = 0;/* continuation flag */
+      unsigned char inbuf[1];
+      int const pixel_byte_size = ((idat->pixel_size + 7) / 8);
+      int const pixel_left = 8 - pixel_byte_size;
+      inbuf[0] = (unsigned char)(msg->byte & 255);
+      /*fprintf(stderr, "x+%2x\n", inbuf[0]);*/
+      (*idat->z.set_input_cb)(idat->z.cb_data, inbuf, 1);
+      do {
+        gold = 0;
+        if (idat->next_left > 0) {
+          (*idat->z.set_output_cb)(idat->z.cb_data,
+            idat->nextbuf + 16 - idat->next_left, idat->next_left);
+          z_result = (*idat->z.churn_cb)
+            (idat->z.cb_data, PNGPARTS_API_Z_NORMAL);
+        } else z_result = PNGPARTS_API_OK;
+        /* report bytes */ {
+          unsigned int byte_count = (*idat->z.output_left_cb)(idat->z.cb_data);
+          idat->byte_count += byte_count;
+          /* print bytes *//*{
+            fprintf(stderr, "\tbytes: [");
+            unsigned int bi;
+            unsigned char*const report_buf =
+              idat->nextbuf + 16 - idat->next_left;
+            for (bi = 0; bi < byte_count; ++bi) {
+              fprintf(stderr, "%s%2x", bi ? ", " : "", report_buf[bi]);
+            }
+            fprintf(stderr, "]\n");
+          }*/
+          idat->next_left -= byte_count;
+        }
+        switch (idat->filter_mode) {
+        case -1: /* filter search */
+          {
+            if (idat->next_left <= 7) {
+              /* filter code available */
+              int const filter_code = idat->nextbuf[8];
+              pngparts_pngread_idat_shift(idat, 1);
+              memset(idat->nextbuf, 0, 8 * sizeof(unsigned char));
+              if (filter_code > 4) {
+                result = PNGPARTS_API_WEIRD_FILTER;
+                break;
+              }
+              /*fprintf(stderr, "line %3li: filter %i\n",
+                idat->y, filter_code);*/
+              idat->filter_mode = filter_code;
+              gold = 1;
+            }
+          }break;
+        case 0:
+          {
+            if (idat->next_left <= pixel_left) {
+              /* null filter */
+              pngparts_pngread_idat_submit(p,idat);
+              gold = 1;
+            }
+          }break;
+        case 1:
+          {
+            if (idat->next_left <= pixel_left) {
+              /* subtraction filter */
+              int i;
+              for (i = 0; i < pixel_byte_size; ++i) {
+                idat->nextbuf[8 + i] = (idat->nextbuf[8 + i]
+                  + idat->nextbuf[pixel_left + i]) & 255;
+              }
+              pngparts_pngread_idat_submit(p, idat);
+              gold = 1;
+            }
+          }break;
+        case 2:
+          {
+            if (idat->next_left <= pixel_left) {
+              /* up filter */
+              int i;
+              for (i = 0; i < pixel_byte_size; ++i) {
+                idat->nextbuf[8 + i] = (idat->nextbuf[8 + i]
+                  + idat->outbuf[idat->outpos + i]) & 255;
+              }
+              pngparts_pngread_idat_submit(p, idat);
+              gold = 1;
+            }
+          }break;
+        case 3:
+          {
+            if (idat->next_left <= pixel_left) {
+              /* average filter */
+              int i;
+              for (i = 0; i < pixel_byte_size; ++i) {
+                unsigned int average = idat->outbuf[idat->outpos + i];
+                average += idat->nextbuf[pixel_left + i];
+                idat->nextbuf[8 + i] =
+                  (idat->nextbuf[8+i]+(average >> 1))&255;
+              }
+              pngparts_pngread_idat_submit(p, idat);
+              gold = 1;
+            }
+          }break;
+        case 4:
+          {
+            if (idat->next_left <= pixel_left) {
+              /* Paeth filter */
+              int i;
+              for (i = 0; i < pixel_byte_size; ++i) {
+                int const corner_byte = (idat->outpos >= pixel_byte_size)
+                  ? idat->outbuf[idat->outpos - pixel_byte_size + i]
+                  : 0;
+                idat->nextbuf[8 + i] = (pngparts_png_paeth_predict
+                  ( idat->nextbuf[pixel_left + i],
+                    idat->outbuf[idat->outpos + i],
+                    corner_byte) + idat->nextbuf[8 + i]) & 255;
+              }
+              pngparts_pngread_idat_submit(p, idat);
+              gold = 1;
+            }
+          }break;
+        case 5:
+          {
+            /* done */
+          }break;
+        }
+        if (idat->x >= idat->line_width) {
+          pngparts_pngread_idat_add(idat, pixel_byte_size);
+          idat->x = 0;
+          idat->y += 1;
+          idat->outpos = 0;
+          memset(idat->nextbuf, 0, 8*sizeof(unsigned char));
+          idat->filter_mode = -1;
+        }
+        if (idat->y >= idat->line_height) {
+          /* continue to next phase */
+          if (idat->level == 0 || idat->level == 7) {
+            /* cease translation */
+            idat->filter_mode = 5;
+          } else {
+            int level_result;
+            idat->x = 0;
+            idat->y = 0;
+            idat->filter_mode = -1;
+            do {
+              idat->level += 1;
+              level_result =
+                pngparts_pngread_start_line(p, idat);
+              if (level_result != PNGPARTS_API_OVERFLOW) break;
+            } while (idat->level <= 7);
+            if (level_result == PNGPARTS_API_OVERFLOW) {
+              idat->filter_mode = 5;
+            }
+          }
+        }
+      } while (z_result == PNGPARTS_API_OVERFLOW || gold);
+      result = z_result;
+      /*fprintf(stderr, "byte count: %lu\n", idat->byte_count);*/
+      if (result == PNGPARTS_API_DONE) {
+        /* last chance check */
+        if (idat->filter_mode == 5)
+          result = PNGPARTS_API_OK;
+        else
+          result = PNGPARTS_API_SHORT_IDAT;
+      }
+    }break;
+  case PNGPARTS_PNG_M_DESTROY:
+    {
+      free(idat->outbuf);
+      free(idat);
+      result = PNGPARTS_API_OK;
+    }break;
+  default:
+    result = PNGPARTS_API_BAD_STATE;
+    break;
+  }
+  return result;
+}
+int pngparts_pngread_assign_idat_api
+  (struct pngparts_png_chunk_cb* cb, struct pngparts_api_z const* z)
+{
+  unsigned char static const name[4] = { 0x49,0x44,0x41,0x54 };
+  struct pngparts_pngread_idat* ptr = (struct pngparts_pngread_idat*)malloc
+    (sizeof(struct pngparts_pngread_idat));
+  if (ptr == NULL) {
+    return PNGPARTS_API_MEMORY;
+  } else {
+    memcpy(cb->name, name, 4 * sizeof(unsigned char));
+    memcpy(&ptr->z, z, sizeof(*z));
+    ptr->level = -1;
+    ptr->outbuf = NULL;
+    ptr->outsize = 0;
+    ptr->outpos = 0;
+    cb->cb_data = ptr;
+    cb->message_cb = pngparts_pngread_idat_msg;
+    return PNGPARTS_API_OK;
+  }
+}
+/*END   IDAT*/

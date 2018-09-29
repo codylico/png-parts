@@ -10,6 +10,8 @@
  */
 
 #include "../src/pngread.h"
+#include "../src/zread.h"
+#include "../src/inflate.h"
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
@@ -83,6 +85,8 @@ int main(int argc, char**argv) {
   FILE *to_read = NULL, *to_write = NULL;
   char const* in_fname = NULL, *out_fname = NULL;
   struct pngparts_png parser;
+  struct pngparts_z zreader;
+  struct pngparts_flate inflater;
   int help_tf = 0;
   int result = 0;
   struct test_image img = { 0,0,NULL };
@@ -145,6 +149,18 @@ int main(int argc, char**argv) {
     pngparts_png_set_image_cb(&parser, &img_api);
   }
   img.outfile = to_write;
+  /* set IDAT callback */ {
+    struct pngparts_api_z z_api;
+    struct pngparts_api_flate flate_api;
+    struct pngparts_png_chunk_cb idat_api;
+    pngparts_zread_init(&zreader);
+    pngparts_inflate_init(&inflater);
+    pngparts_inflate_assign_api(&flate_api, &inflater);
+    pngparts_zread_assign_api(&z_api, &zreader);
+    pngparts_z_set_cb(&zreader, &flate_api);
+    pngparts_pngread_assign_idat_api(&idat_api, &z_api);
+    pngparts_png_add_chunk_cb(&parser, &idat_api);
+  }
   /*pngparts_png_set_z_cb(&parser, &reader,
     &pngparts_z_touch_input, &pngparts_z_touch_output,
     &pngparts_z_churn);*/
@@ -161,6 +177,7 @@ int main(int argc, char**argv) {
     }
     if (result < 0) break;
   } while (0);
+  pngparts_zread_free(&zreader);
   pngparts_pngread_free(&parser);
   /* output to PPM */ {
     test_image_put_ppm(&img);

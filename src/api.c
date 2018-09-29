@@ -21,6 +21,8 @@ int pngparts_api_info(void){
 
 char const* pngparts_api_strerror(int result){
   switch (result){
+  case PNGPARTS_API_SHORT_IDAT: return "too few IDAT chunk data for pixels";
+  case PNGPARTS_API_WEIRD_FILTER: return "weird filter value encountered";
   case PNGPARTS_API_UNCAUGHT_CRITICAL: return "unhandled critical chunk";
   case PNGPARTS_API_BAD_HDR: return "corrupted IHDR chunk";
   case PNGPARTS_API_MISSING_HDR: return "missing IHDR from start of stream";

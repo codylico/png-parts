@@ -133,6 +133,28 @@ struct pngparts_png {
 
 
 /*
+ * Convert from  Adam7 coordinates to regular coordinates.
+ * - level interlace level
+ * - dx regular x-coordinate
+ * - dy regular y-coordinate
+ * - sx Adam7 x-coordinate
+ * - sy Adam7 y-coordinate
+ */
+PNGPARTS_API
+void pngparts_png_adam7_reverse_xy
+  (int level, long int *dx, long int *dy, long int sx, long int sy);
+
+/*
+ * Compute the Paeth prediction.
+ * - left the left byte value
+ * - up the up byte value
+ * - corner the top-left neighbor byte value
+ * @return the Paeth prediction
+ */
+PNGPARTS_API
+int pngparts_png_paeth_predict(int left, int up, int corner);
+
+/*
  * @return an 8-byte signature for PNG files
  */
 PNGPARTS_API

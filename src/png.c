@@ -97,6 +97,55 @@ unsigned char const* pngparts_png_signature(void){
   return sig;
 }
 
+
+void pngparts_png_adam7_reverse_xy
+  (int level, long int *dx, long int *dy, long int sx, long int sy)
+{
+  switch (level) {
+  case 1:
+    *dx = sx * 8;
+    *dy = sy * 8;
+    break;
+  case 2:
+    *dx = sx * 8 + 4;
+    *dy = sy * 8;
+    break;
+  case 3:
+    *dx = sx * 4;
+    *dy = sy * 8 + 4;
+    break;
+  case 4:
+    *dx = sx * 4 + 2;
+    *dy = sy * 4;
+    break;
+  case 5:
+    *dx = sx * 2;
+    *dy = sy * 4 + 2;
+    break;
+  case 6:
+    *dx = sx * 2 + 1;
+    *dy = sy * 2;
+    break;
+  case 7:
+    *dx = sx * 1;
+    *dy = sy * 2 + 1;
+    break;
+  default:
+    *dx = sx;
+    *dy = sy;
+    break;
+  }
+}
+int pngparts_png_paeth_predict(int left, int up, int corner) {
+  int const p = left + up - corner;
+  int const pa = abs(p - left);
+  int const pb = abs(p - up);
+  int const pc = abs(p - corner);
+  if (pa <= pb && pa <= pc) return left;
+  else if (pb <= pc) return up;
+  else return corner;
+}
+
 struct pngparts_png_crc32 pngparts_png_crc32_new(void){
   struct pngparts_png_crc32 out = { 0xFFFFFFFF };
   return out;

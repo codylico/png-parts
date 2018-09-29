@@ -42,6 +42,10 @@ enum pngparts_api_flag {
  * Errors
  */
 enum pngparts_api_error {
+  /* too few IDAT chunk data for pixels */
+  PNGPARTS_API_SHORT_IDAT = -23,
+  /* weird filter value encountered */
+  PNGPARTS_API_WEIRD_FILTER = -22,
   /* critical chunk not handled by any callbacks */
   PNGPARTS_API_UNCAUGHT_CRITICAL = -21,
   /* IHDR damaged or invalid */
