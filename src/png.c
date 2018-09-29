@@ -1,7 +1,12 @@
 
 #include "png.h"
 #include <string.h>
+#include <stdlib.h>
 
+struct pngparts_png_chunk_link {
+  struct pngparts_png_chunk_cb cb;
+  struct pngparts_png_chunk_link *next;
+};
 static unsigned long int const pngparts_png_crc32_pre[256] = {
   /*   0 */
   0x00000000, 0x77073096, 0xEE0E612C, 0x990951BA,
@@ -122,5 +127,84 @@ void pngparts_png_set_image_cb
   (struct pngparts_png* p, struct pngparts_api_image const* img_cb)
 {
   memcpy(&p->img_cb, img_cb, sizeof(*img_cb));
+  return;
+}
+int pngparts_png_add_chunk_cb
+  (struct pngparts_png* p, struct pngparts_png_chunk_cb const* cb)
+{
+  struct pngparts_png_chunk_link *new_link =
+    (struct pngparts_png_chunk_link *)malloc
+      (sizeof(struct pngparts_png_chunk_link));
+  if (new_link != NULL) {
+    memcpy(&new_link->cb, cb, sizeof(struct pngparts_png_chunk_cb));
+    new_link->next = p->chunk_cbs;
+    p->chunk_cbs = new_link;
+    return PNGPARTS_API_OK;
+  } else return PNGPARTS_API_MEMORY;
+}
+int pngparts_png_send_chunk_msg
+  ( struct pngparts_png *p, struct pngparts_png_chunk_cb const* cb,
+    struct pngparts_png_message* msg)
+{
+  int result;
+  result = (*cb->message_cb)(p, cb->cb_data, msg);
+  return result;
+}
+struct pngparts_png_chunk_cb const* pngparts_png_find_chunk_cb
+  ( struct pngparts_png *p, unsigned char const* name)
+{
+  struct pngparts_png_chunk_link const* link_ptr;
+  link_ptr = p->chunk_cbs;
+  while (link_ptr != NULL) {
+    if (memcmp(link_ptr->cb.name, name, 4 * sizeof(unsigned char)) == 0)
+      break;
+    else
+      link_ptr = link_ptr->next;
+  }
+  return link_ptr != NULL ? &link_ptr->cb : NULL;
+}
+void pngparts_png_remove_chunk_cb
+  (struct pngparts_png* p, unsigned char const* name)
+{
+  struct pngparts_png_chunk_link * link_ptr;
+  struct pngparts_png_chunk_link ** link_2ptr;
+  link_ptr = p->chunk_cbs;
+  link_2ptr = &p->chunk_cbs;
+  while (link_ptr != NULL) {
+    if (memcmp(link_ptr->cb.name, name, 4 * sizeof(unsigned char)) == 0) {
+      *link_2ptr = link_ptr->next;
+      struct pngparts_png_message message;
+      message.byte = 0;
+      memcpy(message.name, name, 4 * sizeof(unsigned char));
+      message.ptr = NULL;
+      message.type = PNGPARTS_PNG_M_DESTROY;
+      pngparts_png_send_chunk_msg(p, &link_ptr->cb, &message);
+      free(link_ptr);
+      return;
+    } else {
+      /* update write-back pointer */
+      link_2ptr = &link_ptr->next;
+      /* update current link */
+      link_ptr = link_ptr->next;
+    }
+  }
+  return;
+}
+void pngparts_png_drop_chunk_cbs(struct pngparts_png* p) {
+  struct pngparts_png_chunk_link* link_ptr;
+  link_ptr = p->chunk_cbs;
+  while (link_ptr != NULL) {
+    struct pngparts_png_chunk_link* hold_ptr = link_ptr;
+    link_ptr = link_ptr->next;
+    {
+      struct pngparts_png_message message;
+      message.byte = 0;
+      memcpy(message.name, hold_ptr->cb.name, 4 * sizeof(unsigned char));
+      message.ptr = NULL;
+      message.type = PNGPARTS_PNG_M_DESTROY;
+      pngparts_png_send_chunk_msg(p, &hold_ptr->cb, &message);
+      free(hold_ptr);
+    }
+  }
   return;
 }

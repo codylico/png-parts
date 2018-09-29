@@ -21,6 +21,7 @@ int pngparts_api_info(void){
 
 char const* pngparts_api_strerror(int result){
   switch (result){
+  case PNGPARTS_API_UNCAUGHT_CRITICAL: return "unhandled critical chunk";
   case PNGPARTS_API_BAD_HDR: return "corrupted IHDR chunk";
   case PNGPARTS_API_MISSING_HDR: return "missing IHDR from start of stream";
   case PNGPARTS_API_BAD_CRC: return "bad CRC32 checksum";

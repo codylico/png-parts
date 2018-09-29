@@ -17,6 +17,9 @@
 extern "C" {
 #endif /*__cplusplus*/
 
+struct pngparts_png;
+struct pngparts_png_chunk_link;
+
 /*
  * CRC32 checksum
  */
@@ -24,6 +27,53 @@ struct pngparts_png_crc32 {
   unsigned long int accum;
 };
 
+
+/*
+ * Message types for PNG chunk callbacks.
+ */
+enum pngparts_png_message_type {
+  /* Readiness check */
+  PNGPARTS_PNG_M_READY = 1,
+  /* Byte getter (send byte to the callback) */
+  PNGPARTS_PNG_M_GET = 2,
+  /* Byte putter (receive byte from the callback) */
+  PNGPARTS_PNG_M_PUT = 3,
+  /* Start this chunk
+   * - byte nonzero in write mode, zero in read mode
+   * - ptr points to an unsigned long int, get or set chunk length
+   */
+  PNGPARTS_PNG_M_START = 4,
+  /* Finish this chunk */
+  PNGPARTS_PNG_M_FINISH = 5,
+  /* At end of stream */
+  PNGPARTS_PNG_M_ALL_DONE = 6,
+  /* Destructor */
+  PNGPARTS_PNG_M_DESTROY = 7
+};
+/*
+ * Chunk callback message.
+ */
+struct pngparts_png_message {
+  /* message type */
+  int type;
+  /* input/output data */
+  int byte;
+  /* target chunk callback */
+  unsigned char name[4];
+  /* input/output pointer */
+  void* ptr;
+};
+
+/* chunk callback */
+struct pngparts_png_chunk_cb {
+  /* callback data */
+  void* cb_data;
+  /* name */
+  unsigned char name[4];
+  /* message passing callback */
+  int (*message_cb)
+    (struct pngparts_png*, void* cb_data, struct pngparts_png_message* msg);
+};
 
 /*
  * Header structure
@@ -71,6 +121,10 @@ struct pngparts_png {
   int last_result;
   /* chunk size */
   unsigned long int chunk_size;
+  /* chunk callback linked list */
+  struct pngparts_png_chunk_link *chunk_cbs;
+  /* active chunk callback */
+  struct pngparts_png_chunk_cb const* active_chunk_cb;
   /* header */
   struct pngparts_png_header header;
   /* image callback */
@@ -130,6 +184,52 @@ int pngparts_png_buffer_done(struct pngparts_png const* p);
 PNGPARTS_API
 void pngparts_png_set_image_cb
   (struct pngparts_png* p, struct pngparts_api_image const* img_cb);
+
+/*
+ * Add a chunk callback.
+ * - p PNG structure
+ * - cb chunk callback structure
+ * @return OK on success, MEMORY on allocation failure
+ */
+PNGPARTS_API
+int pngparts_png_add_chunk_cb
+  (struct pngparts_png* p, struct pngparts_png_chunk_cb const*cb);
+/*
+ * Remove a chunk callback.
+ * - p PNG structure
+ * - name chunk name of callback to remove
+ */
+PNGPARTS_API
+void pngparts_png_remove_chunk_cb
+  (struct pngparts_png* p, unsigned char const* name);
+/*
+ * Drop all chunk callbacks.
+ * - p PNG structure
+ */
+PNGPARTS_API
+void pngparts_png_drop_chunk_cbs(struct pngparts_png* p);
+/*
+ * Find a chunk callback by name.
+ * - p PNG structure
+ * - name name of chunk callback to find
+ * @return a pointer to the chunk callback if found, NULL otherwise
+ */
+PNGPARTS_API
+struct pngparts_png_chunk_cb const* pngparts_png_find_chunk_cb
+  ( struct pngparts_png *p, unsigned char const* name);
+
+/*
+ * Send a message to a chunk callback.
+ * - p PNG structure
+ * - cb callback to which to send a message
+ * - msg message to send
+ * @return the result from the callback
+ */
+PNGPARTS_API
+int pngparts_png_send_chunk_msg
+  ( struct pngparts_png *p, struct pngparts_png_chunk_cb const* cb,
+    struct pngparts_png_message* msg);
+
 
 #ifdef __cplusplus
 };

@@ -42,6 +42,8 @@ enum pngparts_api_flag {
  * Errors
  */
 enum pngparts_api_error {
+  /* critical chunk not handled by any callbacks */
+  PNGPARTS_API_UNCAUGHT_CRITICAL = -21,
   /* IHDR damaged or invalid */
   PNGPARTS_API_BAD_HDR = -20,
   /* IHDR missing from start of stream */

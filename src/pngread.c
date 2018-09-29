@@ -12,6 +12,7 @@
 #include "pngread.h"
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 enum pngparts_pngread_flags {
   PNGPARTS_PNGREAD_IHDR_FOUND = 8
@@ -26,15 +27,19 @@ unsigned long int pngparts_pngread_get32(unsigned char const* b) {
     | (((unsigned long int)(b[3] & 255)) << 0);
 }
 
+
 void pngparts_pngread_init(struct pngparts_png* p) {
   p->state = 0;
   p->check = pngparts_png_crc32_new();
   p->shortpos = 0;
   p->last_result = 0;
   p->flags_tf = 0;
+  p->chunk_cbs = NULL;
+  p->active_chunk_cb = NULL;
   return;
 }
 void pngparts_pngread_free(struct pngparts_png* p) {
+  pngparts_png_drop_chunk_cbs(p);
   return;
 }
 int pngparts_pngread_parse(struct pngparts_png* p) {
@@ -52,6 +57,7 @@ int pngparts_pngread_parse(struct pngparts_png* p) {
        * 4  - done
        * 5  - unknown chunk contents
        * 6  - unknown chunk CRC
+       * 7  - IHDR handling
        */
     int ch;
     if (p->flags_tf & 2) {
@@ -115,9 +121,29 @@ int pngparts_pngread_parse(struct pngparts_png* p) {
             if (p->chunk_size > 0) state = 2;
             else state = 3;
           } else {
-            /* dummy stream */
-            if (p->chunk_size > 0) state = 5;
-            else state = 6;
+            /* try to find the matching chunk callback */
+            struct pngparts_png_chunk_cb const*
+              link = pngparts_png_find_chunk_cb(p, chunk_name);
+            if (link != NULL) {
+              struct pngparts_png_message message;
+              message.byte = 0;
+              memcpy(message.name, chunk_name, 4 * sizeof(unsigned char));
+              message.ptr = NULL;
+              message.type = PNGPARTS_PNG_M_START;
+              result = pngparts_png_send_chunk_msg(p, link, &message);
+              if (result == PNGPARTS_API_OK) {
+                p->active_chunk_cb = link;
+                if (p->chunk_size > 0) state = 8;
+                else state = 9;
+                shortpos = 0;
+              } else /* result is set, */break;
+            } else if ((chunk_name[0] & 0x20) == 0) {
+              result = PNGPARTS_API_UNCAUGHT_CRITICAL;
+            } else {
+              /* dummy stream */
+              if (p->chunk_size > 0) state = 5;
+              else state = 6;
+            }
           }
           shortpos = 0;
         }
@@ -215,6 +241,67 @@ int pngparts_pngread_parse(struct pngparts_png* p) {
           /* check the CRC32 */
           state = 6;
           shortpos = 0;
+        }
+      }break;
+    case 8: /* callback chunk data */
+      {
+        if (p->chunk_size > 0 && ch >= 0) {
+          unsigned long int const chunk_size = p->chunk_size;
+          struct pngparts_png_crc32 const check = p->check;
+          /* notify */ {
+            struct pngparts_png_message message;
+            message.byte = ch;
+            memcpy(message.name, p->active_chunk_cb->name,
+              4 * sizeof(unsigned char));
+            message.ptr = NULL;
+            message.type = PNGPARTS_PNG_M_GET;
+            result = pngparts_png_send_chunk_msg
+              (p, p->active_chunk_cb, &message);
+          }
+          p->check = pngparts_png_crc32_accum(check, ch);
+          p->chunk_size = chunk_size-1;
+        }
+        if (p->chunk_size == 0) {
+          state = 9;
+          shortpos = 0;
+        }
+      }break;
+    case 9: /* callback CRC */
+      {
+        if (shortpos < 4 && ch >= 0) {
+          p->shortbuf[shortpos] = (unsigned char)ch;
+          shortpos += 1;
+        }
+        if (shortpos >= 4) {
+          /* check the sum */
+          unsigned long int stream_chk
+            = pngparts_pngread_get32(p->shortbuf);
+          if (pngparts_png_crc32_tol(p->check) != stream_chk) {
+            /* notify */ {
+              struct pngparts_png_message message;
+              message.byte = PNGPARTS_API_BAD_SUM;
+              memcpy(message.name, p->active_chunk_cb->name,
+                4 * sizeof(unsigned char));
+              message.ptr = NULL;
+              message.type = PNGPARTS_PNG_M_FINISH;
+              result = pngparts_png_send_chunk_msg
+                (p, p->active_chunk_cb, &message);
+            }
+          } else {
+            /* notify */ {
+              struct pngparts_png_message message;
+              message.byte = PNGPARTS_API_OK;
+              memcpy(message.name, p->active_chunk_cb->name,
+                4 * sizeof(unsigned char));
+              message.ptr = NULL;
+              message.type = PNGPARTS_PNG_M_FINISH;
+              result = pngparts_png_send_chunk_msg
+                (p, p->active_chunk_cb, &message);
+            }
+            shortpos = 0;
+            result = PNGPARTS_API_OK;
+            state = 1;
+          }
         }
       }break;
     default:
