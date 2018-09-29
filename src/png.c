@@ -90,6 +90,7 @@ static unsigned long int const pngparts_png_crc32_pre[256] = {
   0xB40BBE37, 0xC30C8EA1, 0x5A05DF1B, 0x2D02EF8D
 };
 
+
 unsigned char const* pngparts_png_signature(void){
   static const unsigned char sig[9] = {
     0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0

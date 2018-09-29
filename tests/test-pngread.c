@@ -141,7 +141,7 @@ int main(int argc, char**argv) {
   }
   /* parse the zlib stream */
   pngparts_pngread_init(&parser);
-  {
+  /* set image callback */{
     struct pngparts_api_image img_api;
     img_api.cb_data = &img;
     img_api.start_cb = &test_image_header;
