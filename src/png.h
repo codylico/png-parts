@@ -177,6 +177,14 @@ void pngparts_png_buffer_setup
 PNGPARTS_API
 int pngparts_png_buffer_done(struct pngparts_png const* p);
 /*
+ * Get the image callback.
+ * - p PNG structure
+ * - img_cb image callback structure to write
+ */
+PNGPARTS_API
+void pngparts_png_get_image_cb
+  (struct pngparts_png const* p, struct pngparts_api_image* img_cb);
+/*
  * Set the image callback.
  * - p PNG structure
  * - img_cb image callback structure

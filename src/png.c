@@ -129,6 +129,12 @@ void pngparts_png_set_image_cb
   memcpy(&p->img_cb, img_cb, sizeof(*img_cb));
   return;
 }
+void pngparts_png_get_image_cb
+  (struct pngparts_png const* p, struct pngparts_api_image* img_cb)
+{
+  memcpy(img_cb, &p->img_cb, sizeof(*img_cb));
+  return;
+}
 int pngparts_png_add_chunk_cb
   (struct pngparts_png* p, struct pngparts_png_chunk_cb const* cb)
 {

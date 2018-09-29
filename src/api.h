@@ -260,13 +260,28 @@ struct pngparts_api_z pngparts_api_z_empty(void);
 typedef int (*pngparts_api_image_start_cb)
   ( void* img, long int width, long int height, short bit_depth,
     short color_type, short compression, short filter, short interlace);
-
+/*
+ * Put a color to the image.
+ * - img image
+ * - x x-coordinate
+ * - y y-coordinate
+ * - red red sample
+ * - green green sample
+ * - blue blue sample
+ * - alpha alpha sample
+ */
+typedef void (*pngparts_api_image_put_cb)
+  ( void* img, long int x, long int y,
+    unsigned int red, unsigned int green, unsigned int blue,
+    unsigned int alpha);
 
 struct pngparts_api_image {
   /* callback data */
   void* cb_data;
   /* image start callback */
   pngparts_api_image_start_cb start_cb;
+  /* image color posting callback */
+  pngparts_api_image_put_cb put_cb;
 };
 
 /*
