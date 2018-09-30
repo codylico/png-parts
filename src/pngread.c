@@ -383,8 +383,8 @@ void pngparts_pngread_idat_submit
       int i, count = 8/idat->pixel_size;
       int mask = (1 << idat->pixel_size) - 1;
       long int nx, ny;
-      pngparts_png_adam7_reverse_xy(idat->level, &nx, &ny, idat->x, idat->y);
-      for (i = 0; i < count; ++i) {
+      for (i = count-1; i >= 0; --i) {
+        pngparts_png_adam7_reverse_xy(idat->level, &nx, &ny, idat->x, idat->y);
         if (nx < p->header.width) {
           unsigned int const bit_string =
             (idat->nextbuf[8] >> (i*idat->pixel_size))&mask;
