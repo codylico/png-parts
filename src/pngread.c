@@ -229,6 +229,11 @@ int pngparts_pngread_parse(struct pngparts_png* p) {
           p->header.compression = (int)*(p->shortbuf + 10);
           p->header.filter = (int)*(p->shortbuf + 11);
           p->header.interlace = (int)*(p->shortbuf + 12);
+          /* confirm the header */
+          if (!pngparts_png_header_is_valid(p->header)) {
+            result = PNGPARTS_API_BAD_HDR;
+            break;
+          }
           /* report the header */
           if (p->img_cb.start_cb != NULL) {
             result = (*p->img_cb.start_cb)(p->img_cb.cb_data,

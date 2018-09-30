@@ -147,6 +147,48 @@ int pngparts_png_paeth_predict(int left, int up, int corner) {
   else return corner;
 }
 
+int pngparts_png_header_is_valid(struct pngparts_png_header hdr) {
+  if (hdr.compression != 0) return 0;
+  if (hdr.filter != 0) return 0;
+  if (hdr.interlace != 0
+    && hdr.interlace != 1)
+    return 0;
+  if (hdr.width > 0x7fffFFFF) return 0;
+  if (hdr.height > 0x7fffFFFF) return 0;
+  switch (hdr.color_type) {
+  case 0: /* L */
+    {
+      if (hdr.bit_depth != 1
+      &&  hdr.bit_depth != 2
+      &&  hdr.bit_depth != 4
+      &&  hdr.bit_depth != 8
+      &&  hdr.bit_depth != 16)
+        return 0;
+    }break;
+  case 2: /* RGB */
+  case 4: /* LA */
+  case 6: /* RGBA */
+    {
+      if (hdr.bit_depth != 8
+      &&  hdr.bit_depth != 16)
+        return 0;
+    }break;
+  case 3: /* index */
+    {
+      if (hdr.bit_depth != 1
+      &&  hdr.bit_depth != 2
+      &&  hdr.bit_depth != 4
+      &&  hdr.bit_depth != 8)
+        return 0;
+    }break;
+  default:
+    return 0;
+    break;
+  }
+  return 1;
+}
+
+
 struct pngparts_png_crc32 pngparts_png_crc32_new(void){
   struct pngparts_png_crc32 out = { 0xFFFFFFFF };
   return out;

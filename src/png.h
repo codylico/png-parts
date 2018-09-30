@@ -161,6 +161,14 @@ PNGPARTS_API
 unsigned char const* pngparts_png_signature(void);
 
 /*
+ * Check if a header is valid.
+ * - hdr the header to check
+ * @return nonzero if the header is valid
+ */
+PNGPARTS_API
+int pngparts_png_header_is_valid(struct pngparts_png_header hdr);
+
+/*
  * @return a new CRC-32 instance
  */
 PNGPARTS_API
