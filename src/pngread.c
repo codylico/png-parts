@@ -177,6 +177,17 @@ int pngparts_pngread_parse(struct pngparts_png* p) {
             if (ch >= 0) p->pos += 1;/*not else */
             state = 4;
           }
+          /* notify end of file */ {
+            struct pngparts_png_message message;
+            int broadcast_feedback;
+            message.byte = 0;
+            message.ptr = NULL;
+            message.type = PNGPARTS_PNG_M_ALL_DONE;
+            broadcast_feedback =
+              pngparts_png_broadcast_chunk_msg(p, &message);
+            if (broadcast_feedback < 0)
+              result = broadcast_feedback;
+          }
         }
       }break;
     case 4:
@@ -204,7 +215,7 @@ int pngparts_pngread_parse(struct pngparts_png* p) {
           unsigned long int stream_chk
             = pngparts_pngread_get32(p->shortbuf);
           if (pngparts_png_crc32_tol(p->check) != stream_chk) {
-            result = PNGPARTS_API_BAD_SUM;
+            result = PNGPARTS_API_BAD_CRC;
           } else {
             /* notify done */
             shortpos = 0;
@@ -284,13 +295,15 @@ int pngparts_pngread_parse(struct pngparts_png* p) {
           if (pngparts_png_crc32_tol(p->check) != stream_chk) {
             /* notify */ {
               struct pngparts_png_message message;
-              message.byte = PNGPARTS_API_BAD_SUM;
+              message.byte = PNGPARTS_API_BAD_CRC;
               memcpy(message.name, p->active_chunk_cb->name,
                 4 * sizeof(unsigned char));
               message.ptr = NULL;
               message.type = PNGPARTS_PNG_M_FINISH;
               result = pngparts_png_send_chunk_msg
                 (p, p->active_chunk_cb, &message);
+              if (result >= 0)
+                result = PNGPARTS_API_BAD_CRC;
             }
           } else {
             /* notify */ {
@@ -304,7 +317,6 @@ int pngparts_pngread_parse(struct pngparts_png* p) {
                 (p, p->active_chunk_cb, &message);
             }
             shortpos = 0;
-            result = PNGPARTS_API_OK;
             state = 1;
           }
         }
@@ -815,6 +827,17 @@ int pngparts_pngread_idat_msg
           result = PNGPARTS_API_SHORT_IDAT;
       }
     }break;
+  case PNGPARTS_PNG_M_FINISH:
+    {
+      result = PNGPARTS_API_OK;
+    }break;
+  case PNGPARTS_PNG_M_ALL_DONE:
+    {
+      if (idat->filter_mode == 5)
+        result = PNGPARTS_API_OK;
+      else
+        result = PNGPARTS_API_SHORT_IDAT;
+    }break;
   case PNGPARTS_PNG_M_DESTROY:
     {
       free(idat->outbuf);
@@ -842,6 +865,7 @@ int pngparts_pngread_assign_idat_api
     ptr->outbuf = NULL;
     ptr->outsize = 0;
     ptr->outpos = 0;
+    ptr->filter_mode = -2;
     cb->cb_data = ptr;
     cb->message_cb = pngparts_pngread_idat_msg;
     return PNGPARTS_API_OK;

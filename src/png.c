@@ -306,3 +306,25 @@ void pngparts_png_drop_chunk_cbs(struct pngparts_png* p) {
   }
   return;
 }
+int pngparts_png_broadcast_chunk_msg
+  (struct pngparts_png *p, struct pngparts_png_message const* msg)
+{
+  struct pngparts_png_chunk_link* link_ptr;
+  int first_result = PNGPARTS_API_OK;
+  link_ptr = p->chunk_cbs;
+  while (link_ptr != NULL) {
+    struct pngparts_png_chunk_link* hold_ptr = link_ptr;
+    link_ptr = link_ptr->next;
+    {
+      struct pngparts_png_message message;
+      int result;
+      memcpy(&message, msg, sizeof(message));
+      memcpy(message.name, hold_ptr->cb.name, 4 * sizeof(unsigned char));
+      result = pngparts_png_send_chunk_msg(p, &hold_ptr->cb, &message);
+      if (result < 0
+      &&  first_result == PNGPARTS_API_OK)
+        first_result = result;
+    }
+  }
+  return first_result;
+}

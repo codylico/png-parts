@@ -268,6 +268,16 @@ int pngparts_png_send_chunk_msg
   ( struct pngparts_png *p, struct pngparts_png_chunk_cb const* cb,
     struct pngparts_png_message* msg);
 
+/*
+ * Boradcast a message to all chunk callbacks.
+ * - p PNG structure
+ * - msg message to broadcast
+ * @return the first negative result from a callback,
+ *   or OK on success
+ */
+PNGPARTS_API
+int pngparts_png_broadcast_chunk_msg
+  (struct pngparts_png *p, struct pngparts_png_message const* msg);
 
 #ifdef __cplusplus
 };
