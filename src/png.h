@@ -26,7 +26,15 @@ struct pngparts_png_chunk_link;
 struct pngparts_png_crc32 {
   unsigned long int accum;
 };
-
+/*
+ * Palette color
+ */
+struct pngparts_png_plte_item {
+  unsigned char red;
+  unsigned char green;
+  unsigned char blue;
+  unsigned char alpha;
+};
 
 /*
  * Message types for PNG chunk callbacks.
@@ -119,6 +127,10 @@ struct pngparts_png {
   int pos;
   /* next error found while reading */
   int last_result;
+  /* size of main palette */
+  int palette_count;
+  /* palette array */
+  struct pngparts_png_plte_item *palette;
   /* chunk size */
   unsigned long int chunk_size;
   /* chunk callback linked list */
@@ -222,6 +234,38 @@ void pngparts_png_get_image_cb
 PNGPARTS_API
 void pngparts_png_set_image_cb
   (struct pngparts_png* p, struct pngparts_api_image const* img_cb);
+
+/*
+ * Set the palette size.
+ * - p the PNG structure to modify
+ * - siz new desired size (between 0 and 256 accepted)
+ * @return OK on success, MEMORY on failure
+ */
+PNGPARTS_API
+int pngparts_png_set_plte_size(struct pngparts_png* p, int siz);
+/*
+ * Get the palette size.
+ * - p the PNG structure to modify
+ * @return the current size of the palette
+ */
+PNGPARTS_API
+int pngparts_png_get_plte_size(struct pngparts_png const* p);
+/*
+ * Set the palette item.
+ * - p the PNG structure to modify
+ * - i array index
+ * - v color value
+ */
+void pngparts_png_set_plte_item
+  (struct pngparts_png* p, int i, struct pngparts_png_plte_item v);
+/*
+ * Get a palette item.
+ * - p the PNG structure to modify
+ * - i array index
+ * @return the color value at that index
+ */
+struct pngparts_png_plte_item pngparts_png_get_plte_item
+  (struct pngparts_png const* p, int i);
 
 /*
  * Add a chunk callback.

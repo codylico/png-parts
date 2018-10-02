@@ -46,7 +46,12 @@ int pngparts_pngread_parse(struct pngparts_png* p);
 PNGPARTS_API
 int pngparts_pngread_assign_idat_api
   (struct pngparts_png_chunk_cb* cb, struct pngparts_api_z const* z);
-
+/*
+ * Assign an API for reading PLTE chunks.
+ * - cb chunk callback
+ */
+PNGPARTS_API
+int pngparts_pngread_assign_plte_api(struct pngparts_png_chunk_cb* cb);
 #ifdef __cplusplus
 };
 #endif /*__cplusplus*/

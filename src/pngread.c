@@ -36,10 +36,14 @@ void pngparts_pngread_init(struct pngparts_png* p) {
   p->flags_tf = 0;
   p->chunk_cbs = NULL;
   p->active_chunk_cb = NULL;
+  p->palette_count = 0;
+  p->palette = NULL;
   return;
 }
 void pngparts_pngread_free(struct pngparts_png* p) {
   pngparts_png_drop_chunk_cbs(p);
+  free(p->palette);
+  p->palette = NULL;
   return;
 }
 int pngparts_pngread_parse(struct pngparts_png* p) {
@@ -876,3 +880,106 @@ int pngparts_pngread_assign_idat_api
   }
 }
 /*END   IDAT*/
+
+/*BEGIN PLTE*/
+static int pngparts_pngread_plte_msg
+  (struct pngparts_png* p, void* cb_data, struct pngparts_png_message* msg);
+
+struct pngparts_pngread_plte {
+  int pos;
+  int sample;
+  int done;
+  struct pngparts_png_plte_item color;
+};
+int pngparts_pngread_plte_msg
+  (struct pngparts_png* p, void* cb_data, struct pngparts_png_message* msg)
+{
+  int result;
+  struct pngparts_pngread_plte *plte =
+    (struct pngparts_pngread_plte *)cb_data;
+  switch (msg->type) {
+  case PNGPARTS_PNG_M_READY:
+    {
+      result = plte->done ? PNGPARTS_API_DONE : PNGPARTS_API_OK;
+    }break;
+  case PNGPARTS_PNG_M_START:
+    {
+      /* compute palette size */
+      long int chunk_size = pngparts_png_chunk_remaining(p);
+      int palette_size;
+      if (chunk_size > 768) {
+        palette_size = 256;
+      } else {
+        palette_size = chunk_size / 3;
+      }
+      /* prepare palette */ {
+        result = pngparts_png_set_plte_size(p, palette_size);
+      }
+      plte->pos = 0;
+      plte->sample = 0;
+      plte->color.alpha = 255;
+    }break;
+  case PNGPARTS_PNG_M_GET:
+    {
+      switch (plte->sample) {
+      case 0:
+        plte->color.red = (unsigned char)(msg->byte);
+        plte->sample += 1;
+        break;
+      case 1:
+        plte->color.green = (unsigned char)(msg->byte);
+        plte->sample += 1;
+        break;
+      case 2:
+        plte->color.blue = (unsigned char)(msg->byte);
+        /* set the color to the palette */ {
+          pngparts_png_set_plte_item(p, plte->pos, plte->color);
+        }
+        plte->sample = 0;
+        plte->pos += 1;
+        if (plte->pos >= pngparts_png_get_plte_size(p)) {
+          plte->sample = 4;
+        }
+        break;
+      case 4:
+        /* unused */
+        break;
+      }
+      result = PNGPARTS_API_OK;
+    }break;
+  case PNGPARTS_PNG_M_FINISH:
+    {
+      result = PNGPARTS_API_OK;
+    }break;
+  case PNGPARTS_PNG_M_ALL_DONE:
+    {
+      result = PNGPARTS_API_OK;
+    }break;
+  case PNGPARTS_PNG_M_DESTROY:
+    {
+      free(plte);
+      result = PNGPARTS_API_OK;
+    }break;
+  default:
+    result = PNGPARTS_API_BAD_STATE;
+    break;
+  }
+  return result;
+}
+int pngparts_pngread_assign_plte_api(struct pngparts_png_chunk_cb* cb){
+  unsigned char static const name[4] = { 0x50,0x4C,0x54,0x45 };
+  struct pngparts_pngread_plte* ptr = (struct pngparts_pngread_plte*)malloc
+    (sizeof(struct pngparts_pngread_plte));
+  if (ptr == NULL) {
+    return PNGPARTS_API_MEMORY;
+  } else {
+    memcpy(cb->name, name, 4 * sizeof(unsigned char));
+    ptr->pos = -1;
+    ptr->sample = 0;
+    ptr->done = 0;
+    cb->cb_data = ptr;
+    cb->message_cb = pngparts_pngread_plte_msg;
+    return PNGPARTS_API_OK;
+  }
+}
+/*END   PLTE*/

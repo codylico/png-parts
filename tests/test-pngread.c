@@ -161,6 +161,11 @@ int main(int argc, char**argv) {
     pngparts_pngread_assign_idat_api(&idat_api, &z_api);
     pngparts_png_add_chunk_cb(&parser, &idat_api);
   }
+  /* set PLTE callback */ {
+    struct pngparts_png_chunk_cb plte_api;
+    pngparts_pngread_assign_plte_api(&plte_api);
+    pngparts_png_add_chunk_cb(&parser, &plte_api);
+  }
   /*pngparts_png_set_z_cb(&parser, &reader,
     &pngparts_z_touch_input, &pngparts_z_touch_output,
     &pngparts_z_churn);*/

@@ -331,3 +331,39 @@ int pngparts_png_broadcast_chunk_msg
 long int pngparts_png_chunk_remaining(struct pngparts_png const* p) {
   return p->chunk_size;
 }
+void pngparts_png_set_plte_item
+  (struct pngparts_png* p, int i, struct pngparts_png_plte_item v)
+{
+  p->palette[i] = v;
+  return;
+}
+struct pngparts_png_plte_item pngparts_png_get_plte_item
+  (struct pngparts_png const* p, int i)
+{
+  return p->palette[i];
+}
+
+int pngparts_png_get_plte_size(struct pngparts_png const* p) {
+  return p->palette_count;
+}
+int pngparts_png_set_plte_size(struct pngparts_png* p, int siz) {
+  if (p->palette_count != siz) {
+    if (siz == 0) {
+      free(p->palette);
+      p->palette = NULL;
+      return PNGPARTS_API_OK;
+    } else if (siz < 0 || siz > 256) {
+      return PNGPARTS_API_BAD_PARAM;
+    } else {
+      struct pngparts_png_plte_item* new_palette =
+        realloc(p->palette, siz * sizeof(struct pngparts_png_plte_item));
+      if (new_palette != NULL) {
+        p->palette = new_palette;
+        p->palette_count = siz;
+        return PNGPARTS_API_OK;
+      } else {
+        return PNGPARTS_API_MEMORY;
+      }
+    }
+  } else return PNGPARTS_API_OK;
+}
