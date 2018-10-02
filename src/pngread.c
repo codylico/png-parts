@@ -417,17 +417,17 @@ void pngparts_pngread_idat_submit
             }break;
           case 3: /* index/i */
             {
-              unsigned int red, green, blue, alpha;
-              /* TODO implement the palette */
-              /*pngparts_png_get_palette_color
-                (p, bit_string, &red, &green, &blue, &alpha);*/
-              /* TODO drop */ {
-                red = ((bit_string >> 5)&7) * multiplier[3];
-                green = ((bit_string >> 3) & 3) * multiplier[2];
-                blue = (bit_string & 7) * multiplier[3];
-                alpha = 65535;
+              struct pngparts_png_plte_item color;
+              if (bit_string < pngparts_png_get_plte_size(p)) {
+                color = pngparts_png_get_plte_item(p, bit_string);
+                (*img.put_cb)(img.cb_data, nx, ny,
+                  (color.red << 8) | color.red,
+                  (color.green << 8) | color.green,
+                  (color.blue << 8) | color.blue,
+                  (color.alpha << 8) | color.alpha);
+              } else {
+                /* skip this pixel */
               }
-              (*img.put_cb)(img.cb_data, nx, ny, red, green, blue, alpha);
             }break;
           }
           idat->x += 1;
