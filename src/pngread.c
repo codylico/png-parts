@@ -590,7 +590,7 @@ int pngparts_pngread_start_line
     }
     /*fprintf(stderr, "pass %i: width %lu height %lu\n",
       idat->level, idat->line_width, idat->line_height);*/
-    if (line_length == 0) {
+    if (idat->line_width == 0 || idat->line_height == 0) {
       return PNGPARTS_API_OVERFLOW;
     }
     line_length = idat->line_width*idat->pixel_size;
