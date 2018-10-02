@@ -21,6 +21,7 @@ int pngparts_api_info(void){
 
 char const* pngparts_api_strerror(int result){
   switch (result){
+  case PNGPARTS_API_CHUNK_TOO_LONG: return "chunk length too large";
   case PNGPARTS_API_SHORT_IDAT: return "too few IDAT chunk data for pixels";
   case PNGPARTS_API_WEIRD_FILTER: return "weird filter value encountered";
   case PNGPARTS_API_UNCAUGHT_CRITICAL: return "unhandled critical chunk";

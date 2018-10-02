@@ -42,6 +42,8 @@ enum pngparts_api_flag {
  * Errors
  */
 enum pngparts_api_error {
+  /* chunk size too long */
+  PNGPARTS_API_CHUNK_TOO_LONG = -24,
   /* too few IDAT chunk data for pixels */
   PNGPARTS_API_SHORT_IDAT = -23,
   /* weird filter value encountered */

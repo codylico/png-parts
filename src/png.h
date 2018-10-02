@@ -267,6 +267,13 @@ PNGPARTS_API
 int pngparts_png_send_chunk_msg
   ( struct pngparts_png *p, struct pngparts_png_chunk_cb const* cb,
     struct pngparts_png_message* msg);
+/*
+ * Get the number of bytes remaining in a chunk.
+ * - p PNG structure
+ * @return number of bytes remaining
+ */
+PNGPARTS_API
+long int pngparts_png_chunk_remaining(struct pngparts_png const* p);
 
 /*
  * Boradcast a message to all chunk callbacks.

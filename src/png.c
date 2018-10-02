@@ -328,3 +328,6 @@ int pngparts_png_broadcast_chunk_msg
   }
   return first_result;
 }
+long int pngparts_png_chunk_remaining(struct pngparts_png const* p) {
+  return p->chunk_size;
+}
