@@ -218,6 +218,7 @@ void pngparts_png_buffer_setup
  */
 PNGPARTS_API
 int pngparts_png_buffer_done(struct pngparts_png const* p);
+
 /*
  * Get the image callback.
  * - p PNG structure

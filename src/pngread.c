@@ -105,6 +105,7 @@ int pngparts_pngread_parse(struct pngparts_png* p) {
             result = PNGPARTS_API_CHUNK_TOO_LONG;
             break;
           }
+          /* chunk name */
           memcpy(chunk_name, p->shortbuf + 4, 4 * sizeof(unsigned char));
           /* prepare the crc */
           p->check = pngparts_png_crc32_new();
