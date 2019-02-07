@@ -1,7 +1,7 @@
 /*
  * PNG-parts
  * parts of a Portable Network Graphics implementation
- * Copyright 2018 Cody Licorish
+ * Copyright 2018-2019 Cody Licorish
  *
  * Licensed under the MIT License.
  *
@@ -72,10 +72,13 @@ int pngparts_inflate_one
 /*
  * Finish callback.
  * - fl the flate struct to use
+ * - put_cb unused
+ * - put_data unused
  * @return zero, or -1 if the callback expects more data
  */
 PNGPARTS_API
-int pngparts_inflate_finish(void* fl);
+int pngparts_inflate_finish
+  (void* fl, void* put_data, int(*put_cb)(void*,int));
 
 #ifdef __cplusplus
 };

@@ -1,7 +1,7 @@
 /*
  * PNG-parts
  * parts of a Portable Network Graphics implementation
- * Copyright 2018 Cody Licorish
+ * Copyright 2018-2019 Cody Licorish
  *
  * Licensed under the MIT License.
  *
@@ -149,9 +149,12 @@ typedef int (*pngparts_api_flate_one_cb)
 /*
  * Finish callback.
  * - cb_data flate callback data
+ * - put_data data to pass to put callback
+ * - put_cb callback for putting output bytes
  * @return zero, or EOF if the callback expected more data
  */
-typedef int (*pngparts_api_flate_finish_cb)(void* cb_data);
+typedef int (*pngparts_api_flate_finish_cb)
+  (void* cb_data, void* put_data, pngparts_api_flate_put_cb put_cb);
 /*
  * Interface for DEFLATE algorithms
  */

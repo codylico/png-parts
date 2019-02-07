@@ -147,7 +147,8 @@ int pngparts_zread_parse(void *prs_v, int mode){
           if (pngparts_z_adler32_tol(prs->check) != stream_chk){
             result = PNGPARTS_API_BAD_SUM;
           } else {
-            result = (*prs->cb.finish_cb)(prs->cb.cb_data);
+            result = (*prs->cb.finish_cb)(prs->cb.cb_data,
+              prs,&pngparts_zread_put_cb);
             if (result >= PNGPARTS_API_OK){
               shortpos = 0;
               result = PNGPARTS_API_DONE;

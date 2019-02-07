@@ -589,8 +589,12 @@ int pngparts_inflate_one
   }
   return pos;
 }
-int pngparts_inflate_finish(void* data){
+int pngparts_inflate_finish
+  (void* data, void* put_data, int(*put_cb)(void*,int))
+{
   struct pngparts_flate *fl = (struct pngparts_flate *)data;
+  (void)put_data;
+  (void)put_cb;
   if ((fl->state & PNGPARTS_INFLATE_STATE) != 4)
     return PNGPARTS_API_EOF;
   else
