@@ -21,6 +21,14 @@ int pngparts_api_info(void){
 
 char const* pngparts_api_strerror(int result){
   switch (result){
+  case PNGPARTS_API_CHUNK_TOO_LONG: return "chunk length too large";
+  case PNGPARTS_API_SHORT_IDAT: return "too few IDAT chunk data for pixels";
+  case PNGPARTS_API_WEIRD_FILTER: return "weird filter value encountered";
+  case PNGPARTS_API_UNCAUGHT_CRITICAL: return "unhandled critical chunk";
+  case PNGPARTS_API_BAD_HDR: return "corrupted IHDR chunk";
+  case PNGPARTS_API_MISSING_HDR: return "missing IHDR from start of stream";
+  case PNGPARTS_API_BAD_CRC: return "bad CRC32 checksum";
+  case PNGPARTS_API_BAD_SIGNATURE: return "bad file signature";
   case PNGPARTS_API_WRONG_DICT: return "dictionary given was wrong";
   case PNGPARTS_API_BAD_CODE_LENGTH: return "bad code length";
   case PNGPARTS_API_NOT_FOUND: return "value not found";

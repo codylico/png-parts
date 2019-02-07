@@ -42,6 +42,22 @@ enum pngparts_api_flag {
  * Errors
  */
 enum pngparts_api_error {
+  /* chunk size too long */
+  PNGPARTS_API_CHUNK_TOO_LONG = -24,
+  /* too few IDAT chunk data for pixels */
+  PNGPARTS_API_SHORT_IDAT = -23,
+  /* weird filter value encountered */
+  PNGPARTS_API_WEIRD_FILTER = -22,
+  /* critical chunk not handled by any callbacks */
+  PNGPARTS_API_UNCAUGHT_CRITICAL = -21,
+  /* IHDR damaged or invalid */
+  PNGPARTS_API_BAD_HDR = -20,
+  /* IHDR missing from start of stream */
+  PNGPARTS_API_MISSING_HDR = -19,
+  /* CRC mismatch */
+  PNGPARTS_API_BAD_CRC = -18,
+  /* signature mismatch */
+  PNGPARTS_API_BAD_SIGNATURE = -17,
   /* dictionary given was wrong */
   PNGPARTS_API_WRONG_DICT = -16,
   /* bad code length */
@@ -231,6 +247,48 @@ struct pngparts_api_z {
  */
 struct pngparts_api_z pngparts_api_z_empty(void);
 
+
+
+
+/*
+ * Callback for starting image processing.
+ * - img callback data
+ * - width image width
+ * - height image height
+ * - bit_depth sample depth
+ * - color_type PNG color bit field
+ * - compression method of compression (should be zero)
+ * - filter filter method (should be zero)
+ * - interlace interlace method (should be zero or one)
+ * @return OK if the header good for the image, UNSUPPORTED
+ *   otherwise
+ */
+typedef int (*pngparts_api_image_start_cb)
+  ( void* img, long int width, long int height, short bit_depth,
+    short color_type, short compression, short filter, short interlace);
+/*
+ * Put a color to the image.
+ * - img image
+ * - x x-coordinate
+ * - y y-coordinate
+ * - red red sample
+ * - green green sample
+ * - blue blue sample
+ * - alpha alpha sample
+ */
+typedef void (*pngparts_api_image_put_cb)
+  ( void* img, long int x, long int y,
+    unsigned int red, unsigned int green, unsigned int blue,
+    unsigned int alpha);
+
+struct pngparts_api_image {
+  /* callback data */
+  void* cb_data;
+  /* image start callback */
+  pngparts_api_image_start_cb start_cb;
+  /* image color posting callback */
+  pngparts_api_image_put_cb put_cb;
+};
 
 /*
  * API information as an integer

@@ -10,6 +10,8 @@ set(pngparts_src
   zread.c zread.h
   flate.h flate.c
   inflate.h inflate.c
+  png.c png.h
+  pngread.c pngread.h
   )
 
 add_library(pngparts ${pngparts_src})

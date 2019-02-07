@@ -15,7 +15,7 @@
 int main(int argc, char **argv){
   fprintf(stdout,"API info: %i\n", pngparts_api_info());
   fprintf(stdout,"Error string:\n");
-  for (int i = -13; i <= 2; ++i){
+  for (int i = -17; i <= 2; ++i){
     fprintf(stdout,"  %i:\t%s\n",i,pngparts_api_strerror(i));
   }
   return 0;
