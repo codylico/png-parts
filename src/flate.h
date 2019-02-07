@@ -1,7 +1,7 @@
 /*
  * PNG-parts
  * parts of a Portable Network Graphics implementation
- * Copyright 2018 Cody Licorish
+ * Copyright 2018-2019 Cody Licorish
  *
  * Licensed under the MIT License.
  *
@@ -16,6 +16,32 @@
 #ifdef __cplusplus
 extern "C" {
 #endif /*__cplusplus*/
+
+/*
+ * Compression block types.
+ */
+enum pngparts_flate_block_type {
+  /* put bytes as is */
+  PNGPARTS_FLATE_PLAIN = 0,
+  /* use text-optimized Huffman code table */
+  PNGPARTS_FLATE_FIXED = 1,
+  /* use dynamic Huffman code table */
+  PNGPARTS_FLATE_DYNAMIC = 2
+};
+
+/*
+ * Compression block levels.
+ */
+enum pngparts_flate_block_level {
+  /* put bytes as is */
+  PNGPARTS_FLATE_OFF = 0,
+  /* low compression */
+  PNGPARTS_FLATE_LOW = 1,
+  /* medium compression */
+  PNGPARTS_FLATE_MEDIUM = 2,
+  /* high compression */
+  PNGPARTS_FLATE_HIGH = 3
+};
 
 /*
  * Length conversion structure.

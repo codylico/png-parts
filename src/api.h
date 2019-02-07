@@ -42,6 +42,8 @@ enum pngparts_api_flag {
  * Errors
  */
 enum pngparts_api_error {
+  /* state machine caught in a loop */
+  PNGPARTS_API_LOOPED_STATE = -25,
   /* chunk size too long */
   PNGPARTS_API_CHUNK_TOO_LONG = -24,
   /* too few IDAT chunk data for pixels */

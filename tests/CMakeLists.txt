@@ -17,3 +17,6 @@ target_link_libraries(test_png pngparts)
 
 add_executable(test_pngread "test-pngread.c")
 target_link_libraries(test_pngread pngparts)
+
+add_executable(test_zwrite "test-zwrite.c")
+target_link_libraries(test_zwrite pngparts)
