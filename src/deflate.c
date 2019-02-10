@@ -41,7 +41,7 @@ int pngparts_deflate_start
 {
   struct pngparts_flate *fl = (struct pngparts_flate *)data;
   if (cm != 8) return PNGPARTS_API_UNSUPPORTED;
-  if (cinfo > 7) return PNGPARTS_API_UNSUPPORTED;
+  if (cinfo > 7 || cinfo < 0) return PNGPARTS_API_UNSUPPORTED;
   else {
     unsigned int nsize = 1u<<(cinfo+8);
     unsigned char* ptr = (unsigned char*)malloc(nsize);
