@@ -150,8 +150,12 @@ int pngparts_zwrite_generate(void *zs_v, int mode){
           );
         if (result != PNGPARTS_API_OK)
           break;
-        /* check the byte only after the byte succeeds */{
+        /* check the byte only after the byte succeeds */if (ch >= 0){
           zs->check = pngparts_z_adler32_accum(zs->check, ch);
+        } else if (ch == -1){
+          /* ch is a repeat code; get the actual character */
+          int const actual_ch = zs->inbuf[zs->inpos]&255;
+          zs->check = pngparts_z_adler32_accum(zs->check, actual_ch);
         }
       } else if (sticky_finish) {
         /* notify the deflater of the finale */
