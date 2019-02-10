@@ -254,7 +254,7 @@ void pngparts_flate_huff_make_lengths
           min_level = hist[i];
       }
     }
-    average /= count;
+    if (count > 0) average /= count;
   } else return;
   /* compute code lengths needed */{
     code_limits[0] = (int)(average-((average-min_level)>>1));
