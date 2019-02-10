@@ -155,8 +155,11 @@ int main(int argc, char**argv){
       pngparts_z_setup_input(&writer,inbuf,readlen);
       pngparts_z_setup_output(&writer,outbuf,sizeof(outbuf));
       while (!pngparts_z_input_done(&writer)){
+        size_t writelen;
         result = pngparts_zwrite_generate(&writer,PNGPARTS_API_Z_NORMAL);
-        size_t writelen = pngparts_z_output_left(&writer);
+        if (result < 0)
+          break;
+        writelen = pngparts_z_output_left(&writer);
         if (writelen > 0){
           size_t writeresult =
             fwrite(outbuf,sizeof(unsigned char),writelen,to_write);
