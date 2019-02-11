@@ -188,6 +188,15 @@ int pngparts_deflate_fashion_chunk
   int result = PNGPARTS_API_BAD_STATE;
   /* states:
    *  1 - block information structure
+   *  2 - compose the block length
+   *  3 - compose the reverse block length
+   *  4 - plain output
+   *  5 - final state
+   *  6 - setup and preamble to fixed block
+   *  7 - length/literal
+   *  8 - length extra
+   *  9 - distance
+   * 10 - distance extra
    */
   int state = fl->state&PNGPARTS_DEFLATE_STATE;
   int const last = (fl->state&PNGPARTS_DEFLATE_LAST);
