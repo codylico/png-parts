@@ -547,8 +547,11 @@ int pngparts_inflate_one
             else if (last_block) {
               state = 4;
               pos = PNGPARTS_API_DONE;
-            } else
+            } else {
               state = 0;
+              fl->bitline = 0;
+              fl->bitlength = 0;
+            }
           }
         }
       }break;
@@ -564,8 +567,11 @@ int pngparts_inflate_one
           if (last_block) {
             state = 4;
             pos = PNGPARTS_API_DONE;
-          } else
+          } else {
             state = 0;
+            fl->bitline = 0;
+            fl->bitlength = 0;
+          }
         }
       }break;
     }
