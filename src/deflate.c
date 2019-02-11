@@ -977,7 +977,7 @@ int pngparts_deflate_one
     skip_back = 0;
     switch (fl->state&PNGPARTS_DEFLATE_STATE){
     case 0: /* base */
-      result = pngparts_deflate_churn_input(fl, current_ch);
+      result = pngparts_deflate_churn_input(fl, ch);
       if (result == PNGPARTS_API_OK)
         break;
       else if (result == PNGPARTS_API_OVERFLOW){
