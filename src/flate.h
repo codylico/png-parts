@@ -107,6 +107,8 @@ struct pngparts_flate {
   unsigned char shortbuf[4];
   /* short buffer position */
   unsigned short short_pos;
+  /* inscription alphabet */
+  unsigned short* alphabet;
   /* direct block length */
   unsigned int block_length;
   /* repeat length */
