@@ -91,6 +91,12 @@ struct pngparts_flate {
   unsigned char bitlength;
   /* history of previous bits */
   unsigned int bitline;
+  /* position in current inscription */
+  unsigned short inscription_pos;
+  /* size of inscription in short integers */
+  unsigned short inscription_size;
+  /* text to write */
+  unsigned short* inscription_text;
   /* past bytes read */
   unsigned char* history_bytes;
   /* size of history in bytes */
@@ -113,6 +119,12 @@ struct pngparts_flate {
   struct pngparts_flate_huff length_table;
   /* distance code table */
   struct pngparts_flate_huff distance_table;
+  /* compression type */
+  unsigned char block_type;
+  /* compression level */
+  unsigned char block_level;
+  /* next output byte */
+  unsigned char next_output_byte;
 };
 
 
