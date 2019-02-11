@@ -80,6 +80,16 @@ static int pngparts_deflate_send_integer
   ( struct pngparts_flate *fl, void* put_data, int(*put_cb)(void*,int));
 
 /*
+ * Send a Huffman code through the bit channel.
+ * - fl deflater structure holding the queue
+ * - put_cb callback for putting output bytes
+ * - put_data data to pass to put callback
+ * @return OK if available, else OVERFLOW
+ */
+static int pngparts_deflate_send_code
+  ( struct pngparts_flate *fl, void* put_data, int(*put_cb)(void*,int));
+
+/*
  * Flush the bit channel.
  * - fl deflater structure holding the queue
  * - put_cb callback for putting output bytes
@@ -197,6 +207,10 @@ int pngparts_deflate_fashion_chunk
       else if (fl->bitlength == 0){
         /* switch on type */
         switch (fl->block_type){
+        case PNGPARTS_FLATE_FIXED: /* fixed */
+          state = 6;
+          fl->bitlength = 0;
+          break;
         case PNGPARTS_FLATE_PLAIN: /* plain */
         default:
           state = 2;
@@ -272,6 +286,153 @@ int pngparts_deflate_fashion_chunk
       break;
     result = PNGPARTS_API_DONE;
     break;
+  case 6: /* setup and preamble to fixed block */
+    /* prepare the tables */
+    result = pngparts_flate_huff_resize(&fl->length_table, 288);
+    if (result != PNGPARTS_API_OK)
+      break;
+    result = pngparts_flate_huff_resize(&fl->distance_table, 32);
+    if (result != PNGPARTS_API_OK)
+      break;
+    /* fill the tables with fixed information */
+    pngparts_flate_fixed_lengths(&fl->length_table);
+    pngparts_flate_fixed_distances(&fl->distance_table);
+    /* transition to emitting data */
+    state = 7;
+    fl->bitlength = 0;
+    fl->inscription_pos = 0;
+    result = PNGPARTS_API_LOOPED_STATE;
+    break;
+  case 7: /* length/literal */
+    if (fl->bitlength == 0){
+      unsigned short int const value =
+          (fl->inscription_pos < fl->block_length)
+          ? fl->inscription_text[fl->inscription_pos]
+          : 256;
+      struct pngparts_flate_code const bitcode = pngparts_flate_huff_index_get
+            (&fl->length_table, value);
+      fl->bitline = bitcode.bits;
+      fl->bitlength = bitcode.length;
+    }
+    while (fl->bitlength > 0){
+      result = pngparts_deflate_send_code(fl, put_data, put_cb);
+      if (result != PNGPARTS_API_OK)
+        break;
+      else if (fl->bitlength == 0){
+        unsigned short int const value =
+          (fl->inscription_pos < fl->block_length)
+          ? fl->inscription_text[fl->inscription_pos]
+          : 256;
+        if (value == 256) {
+          /* done with this block */
+          if (last) {
+            state = 5;
+          } else
+            state = 0;
+          /* clear the block */
+          fl->inscription_pos = 0;
+          fl->block_length = 0;
+        } else if (value > 256) {
+          struct pngparts_flate_extra const extra =
+              pngparts_flate_length_decode(value);
+          fl->inscription_pos += 1;
+          if (extra.extra_bits > 0){
+            /* encode now, process later */
+            if (fl->inscription_pos >= fl->block_length){
+              result = PNGPARTS_API_CODE_EXCESS;
+              break;
+            } else {
+              unsigned int extended =
+                fl->inscription_text[fl->inscription_pos];
+              fl->bitlength = extra.extra_bits;
+              fl->bitline = extended;
+              state = 8;
+            }
+          } else {
+            state = 9;
+          }
+        } else {
+          /* come right back */
+          fl->inscription_pos += 1;
+          state = 7;
+        }
+        result = PNGPARTS_API_OK;
+      }
+    }
+    if (result == PNGPARTS_API_OK)
+      result = PNGPARTS_API_LOOPED_STATE;
+    break;
+  case 8: /* length extra */
+    while (fl->bitlength > 0){
+      result = pngparts_deflate_send_integer(fl, put_data, put_cb);
+      if (result != PNGPARTS_API_OK)
+        break;
+      else if (fl->bitlength == 0){
+        state = 9;
+        fl->inscription_pos += 1;
+      }
+    }
+    if (result == PNGPARTS_API_OK)
+      result = PNGPARTS_API_LOOPED_STATE;
+    break;
+  case 9: /* distance */
+    if (fl->inscription_pos >= fl->block_length){
+      result = PNGPARTS_API_CODE_EXCESS;
+      break;
+    } else if (fl->bitlength == 0){
+      unsigned short int const value =
+          fl->inscription_text[fl->inscription_pos];
+      struct pngparts_flate_code const bitcode = pngparts_flate_huff_index_get
+            (&fl->distance_table, value);
+      fl->bitline = bitcode.bits;
+      fl->bitlength = bitcode.length;
+    }
+    while (fl->bitlength > 0){
+      result = pngparts_deflate_send_code(fl, put_data, put_cb);
+      if (result != PNGPARTS_API_OK)
+        break;
+      else if (fl->bitlength == 0){
+        unsigned short int const value =
+          fl->inscription_text[fl->inscription_pos];
+        /* check next state */{
+          struct pngparts_flate_extra const extra =
+              pngparts_flate_length_decode(value);
+          fl->inscription_pos += 1;
+          if (extra.extra_bits > 0){
+            /* encode now, process later */
+            if (fl->inscription_pos >= fl->block_length){
+              result = PNGPARTS_API_CODE_EXCESS;
+              break;
+            } else {
+              unsigned int extended =
+                fl->inscription_text[fl->inscription_pos];
+              fl->bitlength = extra.extra_bits;
+              fl->bitline = extended;
+              state = 10;
+            }
+          } else {
+            state = 7;
+          }
+        }
+        result = PNGPARTS_API_OK;
+      }
+    }
+    if (result == PNGPARTS_API_OK)
+      result = PNGPARTS_API_LOOPED_STATE;
+    break;
+  case 10: /* distance extra */
+    while (fl->bitlength > 0){
+      result = pngparts_deflate_send_integer(fl, put_data, put_cb);
+      if (result != PNGPARTS_API_OK)
+        break;
+      else if (fl->bitlength == 0){
+        state = 7;
+        fl->inscription_pos += 1;
+      }
+    }
+    if (result == PNGPARTS_API_OK)
+      result = PNGPARTS_API_LOOPED_STATE;
+    break;
   default:
     result = PNGPARTS_API_BAD_STATE;
     break;
@@ -294,6 +455,20 @@ int pngparts_deflate_send_integer
   return result;
 }
 
+int pngparts_deflate_send_code
+  ( struct pngparts_flate *fl, void* put_data, int(*put_cb)(void*,int))
+{
+  int result;
+  if (fl->bitlength > 0){
+    unsigned int const b = (fl->bitline>>(fl->bitlength-1))&1;
+    result = pngparts_deflate_send_bit(fl, b, put_data, put_cb);
+    if (result == PNGPARTS_API_OK){
+      fl->bitlength -= 1;
+    }
+  } else result = PNGPARTS_API_OK;
+  return result;
+}
+
 void pngparts_deflate_init(struct pngparts_flate *fl){
   fl->bitpos = 0;
   fl->last_input_byte = 0;
@@ -307,7 +482,7 @@ void pngparts_deflate_init(struct pngparts_flate *fl){
   pngparts_flate_huff_init(&fl->length_table);
   pngparts_flate_huff_init(&fl->distance_table);
   fl->block_level = PNGPARTS_FLATE_OFF;
-  fl->block_type = PNGPARTS_FLATE_PLAIN;
+  fl->block_type = PNGPARTS_FLATE_FIXED;
   return;
 }
 
