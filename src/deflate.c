@@ -187,7 +187,7 @@ int pngparts_deflate_fashion_chunk
       unsigned int const last_tf = last ? 1 : 0;
       unsigned int const block_type =
         (fl->block_type > 2) ? 2 : fl->block_type;
-      fl->bitline = (block_type<<2) | last_tf;
+      fl->bitline = (block_type<<1) | last_tf;
       fl->bitlength = 3;
     }
     while (fl->bitlength > 0){
@@ -196,7 +196,7 @@ int pngparts_deflate_fashion_chunk
         break;
       else if (fl->bitlength == 0){
         /* switch on type */
-        switch ((fl->bitline&6)>>1){
+        switch (fl->block_type){
         case PNGPARTS_FLATE_PLAIN: /* plain */
         default:
           state = 2;
