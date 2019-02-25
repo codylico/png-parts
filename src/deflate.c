@@ -964,14 +964,10 @@ int pngparts_deflate_one
   (void *data, int ch, void* put_data, int(*put_cb)(void*,int))
 {
   int result = PNGPARTS_API_OK;
-  int current_ch;
   struct pngparts_flate *const fl = (struct pngparts_flate *)data;
   unsigned int trouble_counter = 0;
   unsigned int const trouble_max = fl->inscription_size+341;
   int skip_back = 1;
-  if (ch == -1){
-    current_ch = fl->last_input_byte;
-  } else current_ch = ch;
   while (result == PNGPARTS_API_OK
   &&  skip_back)
   {
@@ -1012,7 +1008,6 @@ int pngparts_deflate_finish
   (void* data, void* put_data, int(*put_cb)(void*,int))
 {
   int result = PNGPARTS_API_OK;
-  int current_ch;
   struct pngparts_flate *const fl = (struct pngparts_flate *)data;
   unsigned int trouble_counter = 0;
   unsigned int const trouble_max = fl->inscription_size+341;
