@@ -288,6 +288,14 @@ int adler32_accum_main(int argc, char **argv){
   for (argi = 1; argi < argc; ++argi){
     if (strcmp("-?",argv[argi]) == 0){
       help_tf = 1;
+    } else if (strcmp("-n",argv[argi]) == 0){
+      if (++argi < argc){
+        byte_position = strtol(argv[argi], NULL, 0);
+      }
+    } else if (strcmp("-c",argv[argi]) == 0){
+      if (++argi < argc){
+        count = strtol(argv[argi], NULL, 0);
+      }
     } else {
       fname = argv[argi];
     }

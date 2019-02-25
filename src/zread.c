@@ -59,6 +59,7 @@ int pngparts_zread_parse(void *prs_v, int mode){
   int state = prs->state;
   int shortpos = prs->shortpos;
   int sticky_finish = ((mode&PNGPARTS_API_Z_FINISH) != 0);
+  unsigned int trouble_count = 0;
   if (result == PNGPARTS_API_OVERFLOW){
     if (prs->outpos < prs->outsize)
       result = PNGPARTS_API_OK;
@@ -78,8 +79,13 @@ int pngparts_zread_parse(void *prs_v, int mode){
       ch = -1;
     } else if (prs->inpos < prs->insize)
       /* put actual character */ ch = prs->inbuf[prs->inpos]&255;
-    else
+    else {
+      if (sticky_finish && trouble_count > 4000){
+        result = PNGPARTS_API_LOOPED_STATE;
+        break;
+      } else trouble_count += 1;
       /* put dummy character */ ch = -1;
+    }
     switch (state){
     case 0:
       {
@@ -147,7 +153,8 @@ int pngparts_zread_parse(void *prs_v, int mode){
           if (pngparts_z_adler32_tol(prs->check) != stream_chk){
             result = PNGPARTS_API_BAD_SUM;
           } else {
-            result = (*prs->cb.finish_cb)(prs->cb.cb_data);
+            result = (*prs->cb.finish_cb)(prs->cb.cb_data,
+              prs,&pngparts_zread_put_cb);
             if (result >= PNGPARTS_API_OK){
               shortpos = 0;
               result = PNGPARTS_API_DONE;

@@ -1,7 +1,7 @@
 /*
  * PNG-parts
  * parts of a Portable Network Graphics implementation
- * Copyright 2018 Cody Licorish
+ * Copyright 2018-2019 Cody Licorish
  *
  * Licensed under the MIT License.
  *
@@ -21,6 +21,7 @@ int pngparts_api_info(void){
 
 char const* pngparts_api_strerror(int result){
   switch (result){
+  case PNGPARTS_API_LOOPED_STATE: return "state machine caught in a loop";
   case PNGPARTS_API_CHUNK_TOO_LONG: return "chunk length too large";
   case PNGPARTS_API_SHORT_IDAT: return "too few IDAT chunk data for pixels";
   case PNGPARTS_API_WEIRD_FILTER: return "weird filter value encountered";

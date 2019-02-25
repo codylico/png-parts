@@ -173,6 +173,9 @@ int main(int argc, char**argv){
     }
     if (result < 0) break;
   } while (0);
+  if (result >= 0){
+    result = pngparts_zread_parse(&reader,PNGPARTS_API_Z_FINISH);
+  }
   pngparts_inflate_free(&inflater);
   pngparts_zread_free(&reader);
   /* close */

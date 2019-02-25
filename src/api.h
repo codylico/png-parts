@@ -1,7 +1,7 @@
 /*
  * PNG-parts
  * parts of a Portable Network Graphics implementation
- * Copyright 2018 Cody Licorish
+ * Copyright 2018-2019 Cody Licorish
  *
  * Licensed under the MIT License.
  *
@@ -42,6 +42,8 @@ enum pngparts_api_flag {
  * Errors
  */
 enum pngparts_api_error {
+  /* state machine caught in a loop */
+  PNGPARTS_API_LOOPED_STATE = -25,
   /* chunk size too long */
   PNGPARTS_API_CHUNK_TOO_LONG = -24,
   /* too few IDAT chunk data for pixels */
@@ -149,9 +151,12 @@ typedef int (*pngparts_api_flate_one_cb)
 /*
  * Finish callback.
  * - cb_data flate callback data
+ * - put_data data to pass to put callback
+ * - put_cb callback for putting output bytes
  * @return zero, or EOF if the callback expected more data
  */
-typedef int (*pngparts_api_flate_finish_cb)(void* cb_data);
+typedef int (*pngparts_api_flate_finish_cb)
+  (void* cb_data, void* put_data, pngparts_api_flate_put_cb put_cb);
 /*
  * Interface for DEFLATE algorithms
  */
