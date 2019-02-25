@@ -111,6 +111,8 @@ struct pngparts_flate {
   unsigned char bitlength;
   /* history of previous bits */
   unsigned int bitline;
+  /* amount of inscription committed so far */
+  unsigned short inscription_commit;
   /* position in current inscription */
   unsigned short inscription_pos;
   /* size of inscription in short integers */
@@ -147,6 +149,10 @@ struct pngparts_flate {
   unsigned char block_level;
   /* next output byte */
   unsigned char next_output_byte;
+  /* next inscription alternative */
+  unsigned short alt_inscription[5];
+  /* hash table for compression pairs */
+  struct pngparts_flate_hash pointer_hash;
 };
 
 
