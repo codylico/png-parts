@@ -454,7 +454,10 @@ int pngparts_deflate_fashion_chunk
           struct pngparts_flate_extra const extra =
               pngparts_flate_length_decode(value);
           fl->inscription_pos += 1;
-          if (extra.extra_bits > 0){
+          if (extra.length_value < 0){
+            result = PNGPARTS_API_BAD_BITS;
+            break;
+          } else if (extra.extra_bits > 0){
             /* encode now, process later */
             if (fl->inscription_pos >= fl->block_length){
               result = PNGPARTS_API_CODE_EXCESS;
@@ -475,6 +478,7 @@ int pngparts_deflate_fashion_chunk
           state = 7;
         }
         result = PNGPARTS_API_OK;
+        break;
       }
     }
     if (result == PNGPARTS_API_OK)
@@ -514,9 +518,12 @@ int pngparts_deflate_fashion_chunk
           fl->inscription_text[fl->inscription_pos];
         /* check next state */{
           struct pngparts_flate_extra const extra =
-              pngparts_flate_length_decode(value);
+              pngparts_flate_distance_decode(value);
           fl->inscription_pos += 1;
-          if (extra.extra_bits > 0){
+          if (extra.length_value < 0){
+            result = PNGPARTS_API_BAD_BITS;
+            break;
+          } else if (extra.extra_bits > 0){
             /* encode now, process later */
             if (fl->inscription_pos >= fl->block_length){
               result = PNGPARTS_API_CODE_EXCESS;
@@ -533,6 +540,7 @@ int pngparts_deflate_fashion_chunk
           }
         }
         result = PNGPARTS_API_OK;
+        break;
       }
     }
     if (result == PNGPARTS_API_OK)
