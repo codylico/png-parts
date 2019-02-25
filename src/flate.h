@@ -375,7 +375,7 @@ int pngparts_flate_hash_prepare
 
 /*
  * Add to hash table.
- * - fl flate structure to update
+ * - hash table structure to update
  * - ch byte to add (0 - 255)
  */
 PNGPARTS_API
@@ -383,7 +383,7 @@ void pngparts_flate_hash_add(struct pngparts_flate_hash *hash, int ch);
 
 /*
  * Check the hash table.
- * - fl flate structure to update
+ * - hash table structure to query
  * - history_bytes bytes of history from a corresponding flate structure
  * - chs 3-byte sequence for which to search
  * - start point in history from which to start searching, or zero
