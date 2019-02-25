@@ -309,6 +309,7 @@ int pngparts_deflate_churn_input
       fl->inscription_commit = fl->block_length;
       fl->short_pos = 0;
     }
+    break;
   case PNGPARTS_FLATE_MEDIUM:
   default:
     if (!pngparts_deflate_ready_pair(fl)){
@@ -1260,7 +1261,7 @@ void pngparts_deflate_init(struct pngparts_flate *fl){
   pngparts_flate_huff_init(&fl->code_table);
   pngparts_flate_huff_init(&fl->length_table);
   pngparts_flate_huff_init(&fl->distance_table);
-  fl->block_level = PNGPARTS_FLATE_LOW;
+  fl->block_level = PNGPARTS_FLATE_OFF;
   fl->block_type = PNGPARTS_FLATE_DYNAMIC;
   pngparts_flate_hash_init(&fl->pointer_hash);
   return;
