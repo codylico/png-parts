@@ -117,6 +117,11 @@ struct pngparts_flate {
   unsigned short inscription_pos;
   /* size of inscription in short integers */
   unsigned short inscription_size;
+  /*
+   * run-time parameter:
+   * number of bytes after which to throw away a second match
+   */
+  unsigned short match_truncate;
   /* text to write */
   unsigned short* inscription_text;
   /* past bytes read */

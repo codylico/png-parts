@@ -283,9 +283,9 @@ int pngparts_deflate_churn_input
       for (i = 0; i < fl->short_pos; ++i){
         pngparts_deflate_queue_value(fl, fl->shortbuf[point]);
         pngparts_deflate_record_input(fl, fl->shortbuf[point]);
-        fl->inscription_commit += 1;
         point += 1;
       }
+      fl->inscription_commit = fl->block_length;
       fl->short_pos = 0;
     }
   case PNGPARTS_FLATE_MEDIUM:
@@ -304,6 +304,7 @@ int pngparts_deflate_churn_input
       }
       fl->alt_inscription[0] = 0;
       fl->alt_inscription[1] = 0;
+      fl->alt_inscription[2] = USHRT_MAX;
     }
     if (pngparts_deflate_ready_triple(fl)){
       if (fl->inscription_text[fl->inscription_commit] < 256){
@@ -363,16 +364,92 @@ int pngparts_deflate_churn_input
         &&  fl->inscription_text[fl->inscription_commit] <= 285)
       {
         /* try to extend the current text line */
-        unsigned int const distance_back = fl->alt_inscription[1];
-        unsigned int i;
+        unsigned int distance_back = fl->alt_inscription[1];
+        unsigned int i = 0;
         unsigned int point = 4-fl->short_pos;
-        for (i = 0; i < fl->short_pos && fl->alt_inscription[0] < 256; ++i){
+        if (fl->alt_inscription[0] == 3 && fl->short_pos > 0){
+          unsigned char quartet[4];
+          fl->alt_inscription[2] = 256;
+          fl->alt_inscription[3] = 0;
+          fl->alt_inscription[4] = 0;
+          /* try to compose an alternate match */{
+            unsigned int alt_history_point;
+            unsigned int j;
+            for (j = 1; j <= 3; ++j){
+              quartet[4-j-1] = pngparts_flate_history_get(fl, j);
+            }
+            quartet[3] = fl->shortbuf[point];
+            alt_history_point = pngparts_flate_hash_check
+                (&fl->pointer_hash, fl->history_bytes, quartet+1, 0);
+            if (alt_history_point > 0 && alt_history_point < 2){
+              alt_history_point = pngparts_flate_hash_check
+                ( &fl->pointer_hash, fl->history_bytes,
+                  quartet+1, alt_history_point);
+            }
+            if (alt_history_point > 0){
+              /* record the new history point */
+              fl->alt_inscription[2] = quartet[0];
+              fl->alt_inscription[3] = 3;
+              fl->alt_inscription[4] = alt_history_point-2;
+            }
+          }
+          /* test the first match */if (fl->alt_inscription[2] < 256){
+            int historic_value = pngparts_flate_history_get(fl, distance_back);
+            unsigned char present_value = quartet[3];
+            if (historic_value == present_value){
+              /* extend the length value */
+              fl->alt_inscription[0] += 1;
+              fl->short_pos -= 1;
+              point += 1;
+              pngparts_deflate_record_input(fl, present_value);
+              i += 1;
+            } else /* swap out matches early */{
+              fl->alt_inscription[0] = fl->alt_inscription[3];
+              fl->alt_inscription[1] = fl->alt_inscription[4];
+              fl->inscription_text[fl->inscription_commit] =
+                  fl->alt_inscription[2];
+              fl->inscription_commit += 1;
+              fl->alt_inscription[2] = 256;
+              distance_back = fl->alt_inscription[1];
+              pngparts_deflate_queue_pair
+                  (fl, fl->alt_inscription[0], fl->alt_inscription[1]);
+              fl->short_pos -= 1;
+              point += 1;
+              pngparts_deflate_record_input(fl, present_value);
+              i += 1;
+            }
+          }
+        }
+        for (; i < fl->short_pos && fl->alt_inscription[0] < 256; ++i){
           unsigned char present_value = fl->shortbuf[point];
-          int historic_value = pngparts_flate_history_get(fl, distance_back);
+          int const historic_value =
+            pngparts_flate_history_get(fl, distance_back);
+          int const posthistoric_value =
+            fl->alt_inscription[2] < 256
+            ? pngparts_flate_history_get(fl, fl->alt_inscription[4])
+            : -1;
           if (historic_value == present_value){
             /* extend the length value */
             fl->alt_inscription[0] += 1;
             pngparts_deflate_record_input(fl, present_value);
+            if (fl->block_level <= PNGPARTS_FLATE_MEDIUM){
+              if (fl->alt_inscription[0] > fl->match_truncate){
+                fl->alt_inscription[2] = 256;
+              }
+            }
+            if (posthistoric_value == present_value){
+              fl->alt_inscription[3] += 1;
+            } else fl->alt_inscription[2] = 256;
+          } else if (posthistoric_value == present_value){
+            /* swap out matches */
+            fl->alt_inscription[0] = fl->alt_inscription[3]+1;
+            fl->alt_inscription[1] = fl->alt_inscription[4];
+            fl->inscription_text[fl->inscription_commit] =
+                fl->alt_inscription[2];
+            fl->alt_inscription[2] = 256;
+            fl->inscription_commit += 1;
+            pngparts_deflate_record_input(fl, present_value);
+            distance_back = fl->alt_inscription[1];
           } else break;
           point += 1;
         }
@@ -384,6 +461,9 @@ int pngparts_deflate_churn_input
         if (i < fl->short_pos){
           /* commit the latest pair */{
             fl->inscription_commit = fl->block_length;
+            fl->alt_inscription[0] = 0;
+            fl->alt_inscription[1] = 0;
+            fl->alt_inscription[2] = USHRT_MAX;
           }
           /* transmit the rest */
           for (; i < fl->short_pos; ++i){
@@ -1151,6 +1231,7 @@ void pngparts_deflate_init(struct pngparts_flate *fl){
   fl->inscription_commit = 0;
   fl->inscription_size = 0;
   fl->inscription_text = NULL;
+  fl->match_truncate = 16;
   fl->history_bytes = NULL;
   fl->history_size = 0;
   fl->history_pos = 0;
