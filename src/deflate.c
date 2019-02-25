@@ -1261,7 +1261,7 @@ void pngparts_deflate_init(struct pngparts_flate *fl){
   pngparts_flate_huff_init(&fl->code_table);
   pngparts_flate_huff_init(&fl->length_table);
   pngparts_flate_huff_init(&fl->distance_table);
-  fl->block_level = PNGPARTS_FLATE_OFF;
+  fl->block_level = PNGPARTS_FLATE_MEDIUM;
   fl->block_type = PNGPARTS_FLATE_DYNAMIC;
   pngparts_flate_hash_init(&fl->pointer_hash);
   return;
@@ -1349,6 +1349,15 @@ int pngparts_deflate_start
     fl->state = 0;
     fl->short_pos = 0;
     fl->next_output_byte = 0;
+    /* clean up block level */{
+      if (flevel <= 0) {
+        fl->block_level = PNGPARTS_FLATE_OFF;
+        fl->block_type = PNGPARTS_FLATE_PLAIN;
+      } else if (flevel > 3)
+        fl->block_level = PNGPARTS_FLATE_HIGH;
+      else
+        fl->block_level = flevel;
+    }
   }
   return PNGPARTS_API_OK;
 }
