@@ -646,6 +646,31 @@ void pngparts_flate_hash_add(struct pngparts_flate_hash *hash, int ch){
   return;
 }
 
+void pngparts_flate_hash_skip(struct pngparts_flate_hash *hash, int ch){
+  switch (hash->byte_size){
+  case 0:
+    hash->bytes[0] = (unsigned char)(ch&255);
+    hash->byte_size = 1;
+    break;
+  case 1:
+    hash->bytes[1] = (unsigned char)(ch&255);
+    hash->byte_size = 2;
+    break;
+  default:
+    {
+      unsigned char const ch_value = (unsigned char)(ch&255);
+      /* advance table write pointer */{
+        hash->pos = (hash->pos+1)%(hash->next_size);
+      }
+      /* shift the working space */{
+        hash->bytes[0] = hash->bytes[1];
+        hash->bytes[1] = ch_value;
+      }
+    }break;
+  }
+  return;
+}
+
 unsigned int pngparts_flate_hash_check
   ( struct pngparts_flate_hash *hash, unsigned char const* history_bytes,
     unsigned char const* chs, unsigned int start)

@@ -42,6 +42,14 @@ static void pngparts_deflate_record_input
   (struct pngparts_flate *fl, int ch);
 
 /*
+ * Record a byte of input in history, optionally skipping the hash table.
+ * - fl deflater structure
+ * - ch next byte to put
+ */
+static void pngparts_deflate_record_skippable
+  (struct pngparts_flate *fl, int ch);
+
+/*
  * Queue up a value for the next byte of input.
  * - fl deflater structure
  * - ch next byte to put
@@ -263,6 +271,19 @@ void pngparts_deflate_record_input
   return;
 }
 
+void pngparts_deflate_record_skippable
+  (struct pngparts_flate *fl, int ch)
+{
+  if (ch >= 0){
+    pngparts_flate_history_add(fl, ch);
+    if (fl->block_level <= PNGPARTS_FLATE_LOW)
+      pngparts_flate_hash_skip(&fl->pointer_hash, ch);
+    else
+      pngparts_flate_hash_add(&fl->pointer_hash, ch);
+  }
+  return;
+}
+
 int pngparts_deflate_churn_input
   (struct pngparts_flate *fl, int ch)
 {
@@ -431,7 +452,7 @@ int pngparts_deflate_churn_input
           if (historic_value == present_value){
             /* extend the length value */
             fl->alt_inscription[0] += 1;
-            pngparts_deflate_record_input(fl, present_value);
+            pngparts_deflate_record_skippable(fl, present_value);
             if (fl->block_level <= PNGPARTS_FLATE_MEDIUM){
               if (fl->alt_inscription[0] > fl->match_truncate){
                 fl->alt_inscription[2] = 256;
@@ -448,7 +469,7 @@ int pngparts_deflate_churn_input
                 fl->alt_inscription[2];
             fl->alt_inscription[2] = 256;
             fl->inscription_commit += 1;
-            pngparts_deflate_record_input(fl, present_value);
+            pngparts_deflate_record_skippable(fl, present_value);
             distance_back = fl->alt_inscription[1];
           } else break;
           point += 1;
@@ -1239,7 +1260,7 @@ void pngparts_deflate_init(struct pngparts_flate *fl){
   pngparts_flate_huff_init(&fl->code_table);
   pngparts_flate_huff_init(&fl->length_table);
   pngparts_flate_huff_init(&fl->distance_table);
-  fl->block_level = PNGPARTS_FLATE_MEDIUM;
+  fl->block_level = PNGPARTS_FLATE_LOW;
   fl->block_type = PNGPARTS_FLATE_DYNAMIC;
   pngparts_flate_hash_init(&fl->pointer_hash);
   return;

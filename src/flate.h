@@ -387,6 +387,14 @@ PNGPARTS_API
 void pngparts_flate_hash_add(struct pngparts_flate_hash *hash, int ch);
 
 /*
+ * Add to hash triple collation, but skip insertion into the hash table.
+ * - hash table structure to update
+ * - ch byte to add (0 - 255)
+ */
+PNGPARTS_API
+void pngparts_flate_hash_skip(struct pngparts_flate_hash *hash, int ch);
+
+/*
  * Check the hash table.
  * - hash table structure to query
  * - history_bytes bytes of history from a corresponding flate structure
