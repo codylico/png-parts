@@ -78,6 +78,26 @@ struct pngparts_flate_huff {
 };
 
 /*
+ * Past hash table
+ */
+struct pngparts_flate_hash {
+  /* next indices */
+  unsigned short *next;
+  /* first indices */
+  unsigned short *first;
+  /* size of next indices */
+  unsigned short next_size;
+  /* current table write position */
+  unsigned short pos;
+  /* last few bytes */
+  unsigned char bytes[2];
+  /* minimal bytes processed so far */
+  unsigned char byte_size;
+  /* maximum index of first array */
+  unsigned char first_max;
+};
+
+/*
  * base for flater
  */
 struct pngparts_flate {
@@ -299,6 +319,52 @@ struct pngparts_flate_extra pngparts_flate_length_decode(int literal);
  */
 PNGPARTS_API
 struct pngparts_flate_extra pngparts_flate_distance_decode(int dcode);
+
+/*
+ * Initialize an empty hash table.
+ * - hash the table to initialize
+ */
+PNGPARTS_API
+void pngparts_flate_hash_init(struct pngparts_flate_hash *hash);
+
+/*
+ * Empty the hash table.
+ * - hash the table to empty
+ */
+PNGPARTS_API
+void pngparts_flate_hash_free(struct pngparts_flate_hash *hash);
+
+/*
+ * Empty the hash table.
+ * - hash the table to configure
+ * - size new history size
+ * @return zero on success, MEMORY otherwise
+ */
+PNGPARTS_API
+int pngparts_flate_hash_prepare
+  (struct pngparts_flate_hash *hash, unsigned int size);
+
+/*
+ * Add to hash table.
+ * - fl flate structure to update
+ * - ch byte to add (0 - 255)
+ */
+PNGPARTS_API
+void pngparts_flate_hash_add(struct pngparts_flate_hash *hash, int ch);
+
+/*
+ * Check the hash table.
+ * - fl flate structure to update
+ * - history_bytes bytes of history from a corresponding flate structure
+ * - chs 3-byte sequence for which to search
+ * - start point in history from which to start searching, or zero
+ *     to start from most recent history
+ * @return a distance in history if found, or zero if not found
+ */
+PNGPARTS_API
+unsigned int pngparts_flate_hash_check
+  ( struct pngparts_flate_hash *hash, unsigned char const* history_bytes,
+    unsigned char const* chs, unsigned int start);
 
 #ifdef __cplusplus
 };

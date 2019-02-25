@@ -20,3 +20,6 @@ target_link_libraries(test_pngread pngparts)
 
 add_executable(test_zwrite "test-zwrite.c")
 target_link_libraries(test_zwrite pngparts)
+
+add_executable(test_hash "test-hash.c")
+target_link_libraries(test_hash pngparts)
