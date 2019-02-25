@@ -464,6 +464,56 @@ struct pngparts_flate_extra pngparts_flate_distance_decode(int dcode){
   return out;
 }
 
+struct pngparts_flate_extra pngparts_flate_length_encode(int length){
+  struct pngparts_flate_extra const out =
+    {PNGPARTS_API_NOT_FOUND,length,PNGPARTS_API_NOT_FOUND};
+  if (length >= 3 && length <= 258){
+    /* sorted */{
+      int start = 0;
+      int stop = 29;
+      /* binary search */
+      while (start < (stop-1)){
+        int mid = ((stop-start)>>1)+start;
+        int const midlength = pngparts_flate_length_table[mid].length_value;
+        if (midlength == length)
+          return pngparts_flate_length_table[mid];
+        else if (midlength > length)
+          stop = mid;
+        else /*if (midlength < length)*/
+          start = mid;
+      }
+      return pngparts_flate_length_table[start];
+    }
+  } else return out;
+}
+
+struct pngparts_flate_extra pngparts_flate_distance_encode
+  (unsigned int distance)
+{
+  struct pngparts_flate_extra const out =
+    {PNGPARTS_API_NOT_FOUND,distance,PNGPARTS_API_NOT_FOUND};
+  if (distance >= 1u && distance <= 32768u){
+    /* sorted */{
+      int start = 0;
+      int stop = 30;
+      /* binary search */
+      while (start < (stop-1)){
+        int mid = ((stop-start)>>1)+start;
+        unsigned int const middistance =
+          (unsigned int)pngparts_flate_distance_table[mid].length_value;
+        if (middistance == distance)
+          return pngparts_flate_distance_table[mid];
+        else if (middistance > distance)
+          stop = mid;
+        else /*if (middistance < distance)*/
+          start = mid;
+      }
+      return pngparts_flate_distance_table[start];
+    }
+  } else return out;
+}
+
+
 void pngparts_flate_history_add(struct pngparts_flate *fl, int ch){
   fl->history_bytes[fl->history_pos] = (unsigned char)(ch&255);
   fl->history_pos += 1;

@@ -321,6 +321,29 @@ PNGPARTS_API
 struct pngparts_flate_extra pngparts_flate_distance_decode(int dcode);
 
 /*
+ * Literal from length conversion function.
+ * - length stream length in bytes
+ * @return a structure holding the minimum repeat length for
+ *   the given length code, along with the number of extra bits
+ *   needed for encoding the number, or a structure with negative
+ *   repeat length on error
+ */
+PNGPARTS_API
+struct pngparts_flate_extra pngparts_flate_length_encode(int length);
+
+/*
+ * Distance code from distance conversion function.
+ * - dcode stream distance in bytes
+ * @return a structure holding the minimum repeat distance for
+ *   the given distance code, along with the number of extra bits
+ *   needed for encoding the number, or a structure with negative
+ *   repeat distance on error
+ */
+PNGPARTS_API
+struct pngparts_flate_extra pngparts_flate_distance_encode
+  (unsigned int distance);
+
+/*
  * Initialize an empty hash table.
  * - hash the table to initialize
  */
