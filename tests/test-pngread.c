@@ -16,7 +16,6 @@
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
-#include "test-pngread.h"
 
 struct test_image {
   int width;
