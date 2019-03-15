@@ -42,16 +42,23 @@ struct pngparts_png_plte_item {
 enum pngparts_png_message_type {
   /* Readiness check */
   PNGPARTS_PNG_M_READY = 1,
-  /* Byte getter (send byte to the callback) */
+  /* Byte getter (send byte to the callback)
+   * - byte the next byte in the chunk
+   */
   PNGPARTS_PNG_M_GET = 2,
-  /* Byte putter (receive byte from the callback) */
+  /* Byte putter (receive byte from the callback)
+   * - byte callback should set this byte
+   */
   PNGPARTS_PNG_M_PUT = 3,
   /* Start this chunk
    * - byte nonzero in write mode, zero in read mode
    * - ptr points to an unsigned long int, get or set chunk length
    */
   PNGPARTS_PNG_M_START = 4,
-  /* Finish this chunk */
+  /* Finish this chunk
+   * - byte zero if chunk processing went well, BAD_CRC if
+   *        the checksum was found corrupted
+   */
   PNGPARTS_PNG_M_FINISH = 5,
   /* At end of stream */
   PNGPARTS_PNG_M_ALL_DONE = 6,
