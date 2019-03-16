@@ -218,6 +218,7 @@ struct pngparts_png_crc32 pngparts_png_crc32_accum
 PNGPARTS_API
 void pngparts_png_buffer_setup
   (struct pngparts_png *p, void* buf, int size);
+
 /*
  * Check if the reader has used up the buffer.
  * - p PNG structure
@@ -225,6 +226,14 @@ void pngparts_png_buffer_setup
  */
 PNGPARTS_API
 int pngparts_png_buffer_done(struct pngparts_png const* p);
+
+/*
+ * Check how much of the buffer the writer has used.
+ * - p PNG structure
+ * @return number of bytes that the buffer has used
+ */
+PNGPARTS_API
+int pngparts_png_buffer_used(struct pngparts_png const* p);
 
 /*
  * Get the image callback.
@@ -307,6 +316,15 @@ void pngparts_png_drop_chunk_cbs(struct pngparts_png* p);
 PNGPARTS_API
 struct pngparts_png_chunk_cb const* pngparts_png_find_chunk_cb
   ( struct pngparts_png *p, unsigned char const* name);
+
+/*
+ * Find the next chunk callback that is ready.
+ * - p PNG structure
+ * @return a pointer to the next ready chunk callback if found, NULL otherwise
+ */
+PNGPARTS_API
+struct pngparts_png_chunk_cb const* pngparts_png_find_ready_cb
+  ( struct pngparts_png *p);
 
 /*
  * Send a message to a chunk callback.

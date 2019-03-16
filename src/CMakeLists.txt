@@ -14,6 +14,7 @@ set(pngparts_src
   pngread.c pngread.h
   zwrite.c zwrite.h
   deflate.c deflate.h
+  pngwrite.c pngwrite.h
   )
 
 add_library(pngparts ${pngparts_src})

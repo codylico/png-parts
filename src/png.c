@@ -215,6 +215,11 @@ void pngparts_png_buffer_setup
 int pngparts_png_buffer_done(struct pngparts_png const * p){
   return p->pos == p->size || p->state == 4;
 }
+
+int pngparts_png_buffer_used(struct pngparts_png const* p){
+  return p->pos;
+}
+
 void pngparts_png_set_image_cb
   (struct pngparts_png* p, struct pngparts_api_image const* img_cb)
 {
@@ -261,6 +266,28 @@ struct pngparts_png_chunk_cb const* pngparts_png_find_chunk_cb
   }
   return link_ptr != NULL ? &link_ptr->cb : NULL;
 }
+
+struct pngparts_png_chunk_cb const* pngparts_png_find_ready_cb
+  (struct pngparts_png *p)
+{
+  struct pngparts_png_chunk_link const* link_ptr;
+  link_ptr = p->chunk_cbs;
+  while (link_ptr != NULL) {
+    struct pngparts_png_message message;
+    int result;
+    message.byte = 0;
+    memcpy(message.name, link_ptr->cb.name, 4 * sizeof(unsigned char));
+    message.ptr = NULL;
+    message.type = PNGPARTS_PNG_M_READY;
+    result = pngparts_png_send_chunk_msg(p, &link_ptr->cb, &message);
+    if (result == PNGPARTS_API_OK)
+      break;
+    else
+      link_ptr = link_ptr->next;
+  }
+  return link_ptr != NULL ? &link_ptr->cb : NULL;
+}
+
 void pngparts_png_remove_chunk_cb
   (struct pngparts_png* p, unsigned char const* name)
 {

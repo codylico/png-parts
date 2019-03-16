@@ -42,6 +42,8 @@ enum pngparts_api_flag {
  * Errors
  */
 enum pngparts_api_error {
+  /* chunk callback did not set a valid output byte */
+  PNGPARTS_API_MISSING_PUT = -26,
   /* state machine caught in a loop */
   PNGPARTS_API_LOOPED_STATE = -25,
   /* chunk size too long */
