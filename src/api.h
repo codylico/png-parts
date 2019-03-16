@@ -286,13 +286,47 @@ typedef void (*pngparts_api_image_put_cb)
     unsigned int red, unsigned int green, unsigned int blue,
     unsigned int alpha);
 
+/*
+ * Callback for describing the image to process.
+ * - img callback data
+ * - width output for image width
+ * - height output for image height
+ * - bit_depth output for sample depth
+ * - color_type output for PNG color bit field
+ * - compression output for method of compression (should be zero)
+ * - filter output for filter method (should be zero)
+ * - interlace output for interlace method (should be zero or one)
+ */
+typedef void (*pngparts_api_image_describe_cb)
+  ( void* img, long int *width, long int *height, short *bit_depth,
+    short *color_type, short *compression, short *filter, short *interlace);
+
+/*
+ * Get a color from the image.
+ * - img image
+ * - x x-coordinate
+ * - y y-coordinate
+ * - red output for red sample
+ * - green output for green sample
+ * - blue output for blue sample
+ * - alpha output for alpha sample
+ */
+typedef void (*pngparts_api_image_get_cb)
+  ( void* img, long int x, long int y,
+    unsigned int *red, unsigned int *green, unsigned int *blue,
+    unsigned int *alpha);
+
 struct pngparts_api_image {
   /* callback data */
   void* cb_data;
-  /* image start callback */
+  /* image start callback (read only)*/
   pngparts_api_image_start_cb start_cb;
-  /* image color posting callback */
+  /* image color posting callback (read only)*/
   pngparts_api_image_put_cb put_cb;
+  /* image describe callback (write only)*/
+  pngparts_api_image_describe_cb describe_cb;
+  /* image color fetch callback (write only)*/
+  pngparts_api_image_get_cb get_cb;
 };
 
 /*
