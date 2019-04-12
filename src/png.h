@@ -37,6 +37,14 @@ struct pngparts_png_plte_item {
 };
 
 /*
+ * Size of an Adam7 interlace pass.
+ */
+struct pngparts_png_size {
+  unsigned long int width;
+  unsigned long int height;
+};
+
+/*
  * Message types for PNG chunk callbacks.
  */
 enum pngparts_png_message_type {
@@ -162,6 +170,18 @@ struct pngparts_png {
 PNGPARTS_API
 void pngparts_png_adam7_reverse_xy
   (int level, long int *dx, long int *dy, long int sx, long int sy);
+
+/*
+ * Compute the size of a particular pass of Adam7.
+ * - width the width of the original image
+ * - height the height of the original image
+ * - level index of pass (between 1 and 7 inclusive)
+ * @return the size of the pass, or the original image size
+ *   if an invalid pass index is given
+ */
+PNGPARTS_API
+struct pngparts_png_size pngparts_png_adam7_pass_size
+  (unsigned long int width, unsigned long int height, int level);
 
 /*
  * Compute the Paeth prediction.

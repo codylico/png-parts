@@ -137,6 +137,48 @@ void pngparts_png_adam7_reverse_xy
     break;
   }
 }
+
+struct pngparts_png_size pngparts_png_adam7_pass_size
+  (unsigned long int width, unsigned long int height, int level)
+{
+  struct pngparts_png_size out;
+  switch (level) {
+  case 7:
+    out.width = width;
+    out.height = height/2;
+    break;
+  case 6:
+    out.width = (width / 2);
+    out.height = (height+1) / 2;
+    break;
+  case 5:
+    out.width = ((width + 1) / 2);
+    out.height = (height +1)/ 4;
+    break;
+  case 4:
+    out.width = ((width + 1) / 4);
+    out.height = (height + 3) / 4;
+    break;
+  case 3:
+    out.width = ((width + 3) / 4);
+    out.height = (height + 3) / 8;
+    break;
+  case 2:
+    out.width = ((width + 3) / 8);
+    out.height = (height + 7) / 8;
+    break;
+  case 1:
+    out.width = ((width + 7) / 8);
+    out.height = (height + 7) / 8;
+    break;
+  default:
+    out.width = width;
+    out.height = height;
+    break;
+  }
+  return out;
+}
+
 int pngparts_png_paeth_predict(int left, int up, int corner) {
   int const p = left + up - corner;
   int const pa = abs(p - left);

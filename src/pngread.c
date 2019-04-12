@@ -555,40 +555,12 @@ int pngparts_pngread_start_line
   unsigned long int buffer_length;
   {
     unsigned long int line_length = idat->pixel_size;
-    switch (idat->level) {
-    case 0:
-      idat->line_width = p->header.width;
-      idat->line_height = p->header.height;
-      break;
-    case 7:
-      idat->line_width = p->header.width;
-      idat->line_height = p->header.height/2;
-      break;
-    case 6:
-      idat->line_width = (p->header.width / 2);
-      idat->line_height = (p->header.height+1) / 2;
-      break;
-    case 5:
-      idat->line_width = ((p->header.width + 1) / 2);
-      idat->line_height = (p->header.height +1)/ 4;
-      break;
-    case 4:
-      idat->line_width = ((p->header.width + 1) / 4);
-      idat->line_height = (p->header.height + 3) / 4;
-      break;
-    case 3:
-      idat->line_width = ((p->header.width + 3) / 4);
-      idat->line_height = (p->header.height + 3) / 8;
-      break;
-    case 2:
-      idat->line_width = ((p->header.width + 3) / 8);
-      idat->line_height = (p->header.height + 7) / 8;
-      break;
-    case 1:
-      idat->line_width = ((p->header.width + 7) / 8);
-      idat->line_height = (p->header.height + 7) / 8;
-      break;
-    }
+    struct pngparts_png_size const line_size =
+      pngparts_png_adam7_pass_size(
+        p->header.width, p->header.height, idat->level
+      );
+    idat->line_width = line_size.width;
+    idat->line_height = line_size.height;
     /*fprintf(stderr, "pass %i: width %lu height %lu\n",
       idat->level, idat->line_width, idat->line_height);*/
     if (idat->line_width == 0 || idat->line_height == 0) {
