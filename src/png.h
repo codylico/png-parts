@@ -108,11 +108,18 @@ struct pngparts_png_header {
   long int height;
   /* bit depth per sample (8 with RGBA = 32 bpp) */
   short int bit_depth;
-  /* color type bits (6 = RGBA) */
+  /*
+   * color type bits (R=red, G=green, B=blue, A=alpha)
+   * - 0 = R
+   * - 2 = RGB
+   * - 3 = palette/RGBA
+   * - 4 = RA
+   * - 6 = RGBA
+   */
   short int color_type;
   /* compression method (0 = deflate) */
   short int compression;
-  /* filter type */
+  /* filter type (0=adaptive) */
   short int filter;
   /* interlace method (0 = no interlace, 1 = Adam7) */
   short int interlace;
@@ -297,7 +304,7 @@ void pngparts_png_set_plte_item
   (struct pngparts_png* p, int i, struct pngparts_png_plte_item v);
 /*
  * Get a palette item.
- * - p the PNG structure to modify
+ * - p the PNG structure to read
  * - i array index
  * @return the color value at that index
  */
