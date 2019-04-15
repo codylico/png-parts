@@ -1,7 +1,7 @@
 /*
  * PNG-parts
  * parts of a Portable Network Graphics implementation
- * Copyright 2018 Cody Licorish
+ * Copyright 2018-2019 Cody Licorish
  *
  * Licensed under the MIT License.
  *
@@ -636,6 +636,9 @@ int pngparts_pngread_idat_msg
           if (line_out == PNGPARTS_API_OVERFLOW) {
             /* give up */
             idat->filter_mode = 5;
+            break;
+          } else if (line_out == PNGPARTS_API_MEMORY){
+            result = PNGPARTS_API_MEMORY;
             break;
           }
         }

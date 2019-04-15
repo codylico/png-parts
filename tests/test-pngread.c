@@ -1,7 +1,7 @@
 /*
  * PNG-parts
  * parts of a Portable Network Graphics implementation
- * Copyright 2018 Cody Licorish
+ * Copyright 2018-2019 Cody Licorish
  *
  * Licensed under the MIT License.
  *
@@ -181,8 +181,9 @@ int main(int argc, char**argv) {
     }
     if (result < 0) break;
   } while (0);
-  pngparts_zread_free(&zreader);
   pngparts_pngread_free(&parser);
+  pngparts_zread_free(&zreader);
+  pngparts_inflate_free(&inflater);
   /* output to PPM */ {
     test_image_put_ppm(&img);
   }
