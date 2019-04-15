@@ -1,7 +1,7 @@
 /*
  * PNG-parts
  * parts of a Portable Network Graphics implementation
- * Copyright 2018 Cody Licorish
+ * Copyright 2018-2019 Cody Licorish
  *
  * Licensed under the MIT License.
  *
@@ -303,6 +303,16 @@ void pngparts_png_set_plte_item
  */
 struct pngparts_png_plte_item pngparts_png_get_plte_item
   (struct pngparts_png const* p, int i);
+
+/*
+ * Find a nearest palette item.
+ * - p the PNG structure to inspect
+ * - color the color and alpha for which to search
+ * @return a palette index closest to the requested color, or
+ *   -1 if the palette is empty
+ */
+int pngparts_png_nearest_plte_item
+  (struct pngparts_png const* p, struct pngparts_png_plte_item color);
 
 /*
  * Add a chunk callback.

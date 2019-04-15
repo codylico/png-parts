@@ -2,6 +2,7 @@
 #include "png.h"
 #include <string.h>
 #include <stdlib.h>
+#include <limits.h>
 
 struct pngparts_png_chunk_link {
   struct pngparts_png_chunk_cb cb;
@@ -410,6 +411,31 @@ struct pngparts_png_plte_item pngparts_png_get_plte_item
   (struct pngparts_png const* p, int i)
 {
   return p->palette[i];
+}
+
+int pngparts_png_nearest_plte_item
+  (struct pngparts_png const* p, struct pngparts_png_plte_item color)
+{
+  int out = -1;
+  int out_diff = INT_MAX;
+  int const color_red = color.red;
+  int const color_green = color.green;
+  int const color_blue = color.blue;
+  int const color_alpha = color.alpha;
+  int i;
+  for (i = 0; i < p->palette_count; ++i){
+    struct pngparts_png_plte_item const item = p->palette[i];
+    int const red_diff   = abs(item.red-color_red);
+    int const green_diff = abs(item.green-color_green);
+    int const blue_diff  = abs(item.blue-color_blue);
+    int const alpha_diff = abs(item.alpha-color_alpha);
+    int const total_diff = red_diff + green_diff + blue_diff + alpha_diff;
+    if (total_diff < out_diff){
+      out_diff = total_diff;
+      out = i;
+    }
+  }
+  return out;
 }
 
 int pngparts_png_get_plte_size(struct pngparts_png const* p) {
