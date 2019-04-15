@@ -294,6 +294,10 @@ int pngparts_deflate_churn_input
     fl->shortbuf[3] = (unsigned char)(ch&255);
     fl->short_pos += 1;
   }
+  if (fl->block_length == 4711){
+    static int zero = 0;
+    zero += 1;
+  }
   switch (fl->block_level){
   case PNGPARTS_FLATE_OFF:
     /* plain put */
@@ -403,12 +407,12 @@ int pngparts_deflate_churn_input
             quartet[3] = fl->shortbuf[point];
             alt_history_point = pngparts_flate_hash_check
                 (&fl->pointer_hash, fl->history_bytes, quartet+1, 0);
-            if (alt_history_point > 0 && alt_history_point < 2){
+            if (alt_history_point > 0 && alt_history_point <= 2){
               alt_history_point = pngparts_flate_hash_check
                 ( &fl->pointer_hash, fl->history_bytes,
                   quartet+1, alt_history_point);
             }
-            if (alt_history_point > 0){
+            if (alt_history_point > 2){
               /* record the new history point */
               fl->alt_inscription[2] = quartet[0];
               fl->alt_inscription[3] = 3;
