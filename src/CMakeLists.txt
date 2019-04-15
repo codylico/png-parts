@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.0)
 project(pngparts)
 
 option(BUILD_SHARED_LIBS "Build shared libraries")
+set(PNGPARTS_PNGWRITE_CHUNK_SIZE CACHE STRING
+  "Default IDAT chunk size (default: 7000)")
 
 set(pngparts_src
   api.c api.h
@@ -23,3 +25,7 @@ if (BUILD_SHARED_LIBS)
     target_compile_definitions(pngparts PUBLIC "PNGPARTS_API_SHARED")
   endif(WIN32)
 endif(BUILD_SHARED_LIBS)
+if (PNGPARTS_PNGWRITE_CHUNK_SIZE GREATER 0)
+  target_compile_definitions(pngparts
+    PRIVATE "PNGPARTS_PNGWRITE_CHUNK_SIZE=${PNGPARTS_PNGWRITE_CHUNK_SIZE}")
+endif(PNGPARTS_PNGWRITE_CHUNK_SIZE GREATER 0)

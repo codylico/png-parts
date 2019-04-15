@@ -1,7 +1,7 @@
 /*
  * PNG-parts
  * parts of a Portable Network Graphics implementation
- * Copyright 2018 Cody Licorish
+ * Copyright 2018-2019 Cody Licorish
  *
  * Licensed under the MIT License.
  *
@@ -38,6 +38,17 @@ void pngparts_pngwrite_free(struct pngparts_png* w);
  */
 PNGPARTS_API
 int pngparts_pngwrite_generate(struct pngparts_png* w);
+
+/*
+ * Assign an API for writing IDAT chunks.
+ * - cb chunk callback
+ * - z zlib stream writer
+ * - chunk_size size of chunks to generate (or 0 for default value)
+ */
+PNGPARTS_API
+int pngparts_pngwrite_assign_idat_api
+  ( struct pngparts_png_chunk_cb* cb, struct pngparts_api_z const* z,
+    int chunk_size);
 
 #ifdef __cplusplus
 };

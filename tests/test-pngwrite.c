@@ -1,7 +1,7 @@
 /*
  * PNG-parts
  * parts of a Portable Network Graphics implementation
- * Copyright 2018 Cody Licorish
+ * Copyright 2018-2019 Cody Licorish
  *
  * Licensed under the MIT License.
  *
@@ -190,6 +190,18 @@ int main(int argc, char**argv) {
     for (argi = 1; argi < argc; ++argi) {
       if (strcmp(argv[argi], "-?") == 0) {
         help_tf = 1;
+      } else if (strcmp(argv[argi], "-b") == 0) {
+        if (argi + 1 < argc){
+          argi += 1;
+          img.bit_depth = atoi(argv[argi]);
+        }
+      } else if (strcmp(argv[argi], "-c") == 0) {
+        if (argi + 1 < argc){
+          argi += 1;
+          img.color_type = atoi(argv[argi]);
+        }
+      } else if (strcmp(argv[argi], "-i") == 0) {
+        img.interlace_tf = 1;
       } else if (in_fname == NULL) {
         in_fname = argv[argi];
       } else if (out_fname == NULL) {
@@ -197,9 +209,13 @@ int main(int argc, char**argv) {
       }
     }
     if (help_tf) {
-      fprintf(stderr, "usage: test_pngwrite ... (infile) (outfile)\n"
+      fprintf(stderr,
+        "usage: test_pngwrite [...options...] (infile) (outfile)\n"
         "  -                  stdin/stdout\n"
         "  -?                 help message\n"
+        "  -i                 enable interlacing\n"
+        "  -c (type)          set color type\n"
+        "  -b (depth)         set sample bit depth\n"
       );
       return 2;
     }
@@ -252,10 +268,8 @@ int main(int argc, char**argv) {
     pngparts_deflate_assign_api(&flate_api, &deflater);
     pngparts_zwrite_assign_api(&z_api, &zwriter);
     pngparts_z_set_cb(&zwriter, &flate_api);
-#if 0
-    pngparts_pngread_assign_idat_api(&idat_api, &z_api);
+    pngparts_pngwrite_assign_idat_api(&idat_api, &z_api, 0);
     pngparts_png_add_chunk_cb(&writer, &idat_api);
-#endif /*0*/
   }
   /* set PLTE callback */ {
     struct pngparts_png_chunk_cb plte_api;
