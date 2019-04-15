@@ -316,6 +316,7 @@ int main(int argc, char**argv) {
   } while (0);
   pngparts_zwrite_free(&zwriter);
   pngparts_pngwrite_free(&writer);
+  pngparts_deflate_free(&deflater);
   /* close */
   free(img.bytes);
   if (to_write != stdout) fclose(to_write);
