@@ -44,6 +44,7 @@ int pngparts_pngwrite_generate(struct pngparts_png* w);
  * - cb chunk callback
  * - z zlib stream writer
  * - chunk_size size of chunks to generate (or 0 for default value)
+ * @return OK on success
  */
 PNGPARTS_API
 int pngparts_pngwrite_assign_idat_api
