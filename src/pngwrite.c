@@ -376,9 +376,6 @@ int pngparts_pngwrite_generate(struct pngparts_png* w){
   w->last_result = result;
   w->state = (short)state;
   w->shortpos = (short)shortpos;
-  if (result) {
-    w->flags_tf |= 2;
-  }
   return result;
 }
 
