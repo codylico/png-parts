@@ -14,9 +14,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-enum pngparts_pngread_flags {
-  PNGPARTS_PNGREAD_IHDR_FOUND = 8
-};
 
 static unsigned long int pngparts_pngread_get32(unsigned char const*);
 
@@ -64,7 +61,7 @@ int pngparts_pngread_parse(struct pngparts_png* p) {
        * 7  - IHDR handling
        */
     int ch;
-    if (p->flags_tf & 2) {
+    if (p->flags_tf & PNGPARTS_PNG_REPEAT_CHAR) {
       /* put dummy character */
       ch = -1;
     } else if (p->pos < p->size)
@@ -115,12 +112,12 @@ int pngparts_pngread_parse(struct pngparts_png* p) {
               p->check = pngparts_png_crc32_accum(p->check, chunk_name[i]);
             }
           }
-          if ((p->flags_tf & PNGPARTS_PNGREAD_IHDR_FOUND) == 0) {
+          if ((p->flags_tf & PNGPARTS_PNG_IHDR_DONE) == 0) {
             if (memcmp(chunk_name, "\x49\x48\x44\x52", 4) == 0) {
               if (p->chunk_size == 13) {
                 state = 7;
                 shortpos = 0;
-                p->flags_tf |= PNGPARTS_PNGREAD_IHDR_FOUND;
+                p->flags_tf |= PNGPARTS_PNG_IHDR_DONE;
               } else result = PNGPARTS_API_BAD_HDR;
             } else {
               result = PNGPARTS_API_MISSING_HDR;
@@ -339,9 +336,9 @@ int pngparts_pngread_parse(struct pngparts_png* p) {
     p->shortpos = shortpos;
     if (result != PNGPARTS_API_OK) {
       break;
-    } else if (p->flags_tf & 2) {
+    } else if (p->flags_tf & PNGPARTS_PNG_REPEAT_CHAR) {
       /* reset the flag */
-      p->flags_tf &= ~2;
+      p->flags_tf &= ~PNGPARTS_PNG_REPEAT_CHAR;
       p->pos += 1;
     } else if (ch >= 0) {
       p->pos += 1;
@@ -351,7 +348,7 @@ int pngparts_pngread_parse(struct pngparts_png* p) {
   p->state = (short)state;
   p->shortpos = (short)shortpos;
   if (result) {
-    p->flags_tf |= 2;
+    p->flags_tf |= PNGPARTS_PNG_REPEAT_CHAR;
   }
   return result;
 }

@@ -20,10 +20,6 @@
 
 struct pngparts_pngwrite_idat;
 
-enum pngparts_pngwrite_flags {
-  PNGPARTS_PNGWRITE_IHDR_DONE = 8
-};
-
 /*
  * Put a 16-bit integer to byte storage.
  * - b the byte storage into which to write
@@ -149,7 +145,7 @@ int pngparts_pngwrite_generate(struct pngparts_png* w){
       if (shortpos == 0){
         unsigned char* const chunk_name = w->shortbuf+4;
         w->check = pngparts_png_crc32_new();
-        if (w->flags_tf & PNGPARTS_PNGWRITE_IHDR_DONE){
+        if (w->flags_tf & PNGPARTS_PNG_IHDR_DONE){
           /* look for the next chunk to do */
           int i;
           struct pngparts_png_chunk_cb const* next_cb =
@@ -205,7 +201,7 @@ int pngparts_pngwrite_generate(struct pngparts_png* w){
         ch = w->shortbuf[shortpos];
         shortpos += 1;
         if (shortpos >= 8){
-          if (w->flags_tf & PNGPARTS_PNGWRITE_IHDR_DONE){
+          if (w->flags_tf & PNGPARTS_PNG_IHDR_DONE){
             if (w->active_chunk_cb != NULL){
               /* do the next chunk callback */
               if (w->chunk_size > 0){
@@ -365,7 +361,7 @@ int pngparts_pngwrite_generate(struct pngparts_png* w){
       if (w->chunk_size == 0){
         state = 6;
         shortpos = 0;
-        w->flags_tf |= PNGPARTS_PNGWRITE_IHDR_DONE;
+        w->flags_tf |= PNGPARTS_PNG_IHDR_DONE;
       }
       break;
     }

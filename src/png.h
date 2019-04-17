@@ -21,6 +21,14 @@ struct pngparts_png;
 struct pngparts_png_chunk_link;
 
 /*
+ * structure flags
+ */
+enum pngparts_png_flags {
+  PNGPARTS_PNG_REPEAT_CHAR = 2,
+  PNGPARTS_PNG_IHDR_DONE = 8
+};
+
+/*
  * CRC32 checksum
  */
 struct pngparts_png_crc32 {
@@ -136,6 +144,8 @@ struct pngparts_png {
   /* buffer for short byte chunks */
   unsigned char shortbuf[15];
   /*
+   * 2 - repeat character
+   * 4 - chunk size unlocked
    * 8 - IHDR crossed
    */
   unsigned char flags_tf;
