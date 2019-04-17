@@ -50,6 +50,7 @@ char const* pngparts_api_strerror(int result){
   case PNGPARTS_API_EOF: return "stream too quick to finish";
   case PNGPARTS_API_OK: return "all is good";
   case PNGPARTS_API_DONE: return "the stream is done";
+  case PNGPARTS_API_NOT_READY: return "the callback is not ready";
   default: return "?";
   }
 }

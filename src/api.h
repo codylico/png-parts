@@ -99,7 +99,9 @@ enum pngparts_api_error {
   /* output buffer overflow */
   PNGPARTS_API_OVERFLOW = 1,
   /* the stream is done; quit pushing data */
-  PNGPARTS_API_DONE = 2
+  PNGPARTS_API_DONE = 2,
+  /* the callback is not yet ready */
+  PNGPARTS_API_NOT_READY = 3
 };
 /*
  * Expectation mode for zlib stream processing.
