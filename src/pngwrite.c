@@ -155,25 +155,26 @@ int pngparts_pngwrite_generate(struct pngparts_png* w){
             /* prepare for the next chunk */
             memcpy(chunk_name, next_cb->name, 4);
             /* query the chunk size */{
-              unsigned long int next_size = 0;
               struct pngparts_png_message message;
               int size_result;
               message.type = PNGPARTS_PNG_M_START;
               message.byte = 1;/*write mode */
               memcpy(message.name, chunk_name, 4);
-              message.ptr = &next_size;
+              message.ptr = NULL;
+              w->flags_tf |= PNGPARTS_PNG_CHUNK_RW;
               size_result = pngparts_png_send_chunk_msg(w, next_cb, &message);
+              w->flags_tf &= ~PNGPARTS_PNG_CHUNK_RW;
               if (size_result < 0){
                 result = size_result;
                 break;
               } else if (size_result == PNGPARTS_API_DONE){
                 result = PNGPARTS_API_EOF;
                 break;
-              } else if (next_size > 0x7fFFffFF){
+              } else if (w->chunk_size > 0x7fFFffFF){
                 result = PNGPARTS_API_CHUNK_TOO_LONG;
                 break;
               } else {
-                w->chunk_size = next_size;
+                /*w->chunk_size = w->chunk_size;*/
                 w->active_chunk_cb = next_cb;
               }
             }
@@ -806,7 +807,7 @@ int pngparts_pngwrite_idat_msg
         /* generate a chunk */{
           int const chunk_out = pngparts_pngwrite_generate_chunk(p, idat);
           if (chunk_out >= PNGPARTS_API_OK){
-            (*(unsigned long int*)msg->ptr) = idat->outlen;
+            pngparts_png_set_chunk_size(p, idat->outlen);
           }
           result = chunk_out;
         }
@@ -814,7 +815,7 @@ int pngparts_pngwrite_idat_msg
         /* generate a chunk */{
           int const chunk_out = pngparts_pngwrite_generate_chunk(p, idat);
           if (chunk_out >= PNGPARTS_API_OK){
-            (*(unsigned long int*)msg->ptr) = idat->outlen;
+            pngparts_png_set_chunk_size(p, idat->outlen);
           }
           result = chunk_out;
         }

@@ -25,6 +25,7 @@ struct pngparts_png_chunk_link;
  */
 enum pngparts_png_flags {
   PNGPARTS_PNG_REPEAT_CHAR = 2,
+  PNGPARTS_PNG_CHUNK_RW = 4,
   PNGPARTS_PNG_IHDR_DONE = 8
 };
 
@@ -68,7 +69,6 @@ enum pngparts_png_message_type {
   PNGPARTS_PNG_M_PUT = 3,
   /* Start this chunk
    * - byte nonzero in write mode, zero in read mode
-   * - ptr points to an unsigned long int, get or set chunk length
    */
   PNGPARTS_PNG_M_START = 4,
   /* Finish this chunk
@@ -391,6 +391,15 @@ int pngparts_png_send_chunk_msg
  */
 PNGPARTS_API
 long int pngparts_png_chunk_remaining(struct pngparts_png const* p);
+
+/*
+ * Set the next chunk size.
+ * - p PNG structure
+ * - size number of bytes in a chunk
+ * @return OK on success, other negative API value otherwise
+ */
+PNGPARTS_API
+int pngparts_png_set_chunk_size(struct pngparts_png* p, long int size);
 
 /*
  * Boradcast a message to all chunk callbacks.

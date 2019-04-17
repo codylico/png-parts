@@ -398,9 +398,20 @@ int pngparts_png_broadcast_chunk_msg
   }
   return first_result;
 }
+
 long int pngparts_png_chunk_remaining(struct pngparts_png const* p) {
   return p->chunk_size;
 }
+
+int pngparts_png_set_chunk_size(struct pngparts_png* p, long int size){
+  if (p->flags_tf & PNGPARTS_PNG_CHUNK_RW){
+    if (size >= 0 && size < 0x7fffFFFF){
+      p->chunk_size = (unsigned long int)size;
+      return PNGPARTS_API_OK;
+    } else return PNGPARTS_API_CHUNK_TOO_LONG;
+  } else return PNGPARTS_API_BAD_STATE;
+}
+
 void pngparts_png_set_plte_item
   (struct pngparts_png* p, int i, struct pngparts_png_plte_item v)
 {
