@@ -54,11 +54,11 @@ void test_image_describe
   fprintf(stderr, "{\"image info\":{\n"
     "  \"width\": %li,\n"
     "  \"height\": %li,\n"
-    "  \"bit depth\": %i\n"
-    "  \"color type\": %i\n"
-    "  \"compression\": %i\n"
-    "  \"filter\": %i\n"
-    "  \"interlace\": %i\n}\n",
+    "  \"bit depth\": %i,\n"
+    "  \"color type\": %i,\n"
+    "  \"compression\": %i,\n"
+    "  \"filter\": %i,\n"
+    "  \"interlace\": %i\n}}\n",
     *width, *height, *bit_depth, *color_type, *compression, *filter, *interlace
   );
 }
