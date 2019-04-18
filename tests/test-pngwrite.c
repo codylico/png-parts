@@ -289,6 +289,7 @@ int main(int argc, char**argv) {
       /* quit early */
       pngparts_pngwrite_free(&writer);
       pngparts_zwrite_free(&zwriter);
+      pngparts_deflate_free(&deflater);
       /* close */
       free(img.bytes);
       if (to_write != stdout) fclose(to_write);
@@ -318,8 +319,8 @@ int main(int argc, char**argv) {
     }
     if (result < 0) break;
   } while (0);
-  pngparts_zwrite_free(&zwriter);
   pngparts_pngwrite_free(&writer);
+  pngparts_zwrite_free(&zwriter);
   pngparts_deflate_free(&deflater);
   /* close */
   free(img.bytes);

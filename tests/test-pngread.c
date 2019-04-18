@@ -181,12 +181,14 @@ int main(int argc, char**argv) {
     }
     if (result < 0) break;
   } while (0);
-  pngparts_pngread_free(&parser);
-  pngparts_zread_free(&zreader);
-  pngparts_inflate_free(&inflater);
   /* output to PPM */ {
     test_image_put_ppm(&img);
   }
+
+  /* cleanup */
+  pngparts_pngread_free(&parser);
+  pngparts_zread_free(&zreader);
+  pngparts_inflate_free(&inflater);
   /* close */
   free(img.bytes);
   if (to_write != stdout) fclose(to_write);
