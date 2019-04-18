@@ -217,7 +217,7 @@ int main(int argc, char**argv) {
     if (pltefile == NULL){
       int errval = errno;
       fprintf(stderr, "Failed to open '%s' for palette.\n\t%s\n",
-        in_fname, strerror(errval));
+        plte_fname, strerror(errval));
       pngparts_pngread_free(&parser);
       pngparts_zread_free(&zreader);
       pngparts_inflate_free(&inflater);
