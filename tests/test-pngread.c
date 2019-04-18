@@ -22,6 +22,7 @@ struct test_image {
   int height;
   unsigned char* bytes;
   FILE* outfile;
+  FILE* alphafile;
 };
 static int test_image_header
   ( void* img, long int width, long int height, short bit_depth,
@@ -80,6 +81,18 @@ void test_image_put_ppm(struct test_image* img) {
   }
 }
 
+void test_image_put_alphapgm(struct test_image* img) {
+  int x, y;
+  fprintf(img->alphafile, "P2\n%i %i\n255\n", img->width, img->height);
+  for (y = 0; y < img->height; ++y) {
+    for (x = 0; x < img->width; ++x) {
+      unsigned char *const pixel = (&img->bytes[(y*img->width + x) * 4]);
+      fprintf(img->alphafile, "%i\n", pixel[3]);
+    }
+  }
+  return;
+}
+
 void test_image_put_plte(FILE* pltefile, struct pngparts_png* plte_src){
   int x;
   int const plte_size = pngparts_png_get_plte_size(plte_src);
@@ -96,13 +109,13 @@ void test_image_put_plte(FILE* pltefile, struct pngparts_png* plte_src){
 int main(int argc, char**argv) {
   FILE *to_read = NULL, *to_write = NULL;
   char const* in_fname = NULL, *out_fname = NULL;
-  char const* plte_fname = NULL;
+  char const* plte_fname = NULL, *alpha_fname = NULL;
   struct pngparts_png parser;
   struct pngparts_z zreader;
   struct pngparts_flate inflater;
   int help_tf = 0;
   int result = 0;
-  struct test_image img = { 0,0,NULL };
+  struct test_image img = { 0,0,NULL,NULL,NULL };
   {
     int argi;
     for (argi = 1; argi < argc; ++argi) {
@@ -112,6 +125,11 @@ int main(int argc, char**argv) {
         if (argi+1 < argc){
           argi += 1;
           plte_fname = argv[argi];
+        }
+      } else if (strcmp("-a",argv[argi]) == 0){
+        if (argi+1 < argc){
+          argi += 1;
+          alpha_fname = argv[argi];
         }
       } else if (in_fname == NULL) {
         in_fname = argv[argi];
@@ -126,6 +144,7 @@ int main(int argc, char**argv) {
         "  -?                 help message\n"
         "options:\n"
         "  -p (file)          palette output file\n"
+        "  -a (file)          alpha channel output file\n"
       );
       return 2;
     }
@@ -229,6 +248,32 @@ int main(int argc, char**argv) {
     } else {
       test_image_put_plte(pltefile, &parser);
       fclose(pltefile);
+    }
+  }
+
+  /* output the alpha channel */if (alpha_fname != NULL){
+    FILE *alphafile;
+    if (to_write != stdout){
+      fclose(to_write);
+      to_write = stdout;
+    }
+    alphafile = fopen(alpha_fname, "wt");
+    if (alphafile == NULL){
+      int errval = errno;
+      fprintf(stderr, "Failed to open '%s' for alpha channel.\n\t%s\n",
+        alpha_fname, strerror(errval));
+      pngparts_pngread_free(&parser);
+      pngparts_zread_free(&zreader);
+      pngparts_inflate_free(&inflater);
+      /* close */
+      free(img.bytes);
+      if (to_write != stdout) fclose(to_write);
+      if (to_read != stdin) fclose(to_read);
+      return 1;
+    } else {
+      img.alphafile = alphafile;
+      test_image_put_alphapgm(&img);
+      fclose(alphafile);
     }
   }
 

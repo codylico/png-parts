@@ -26,6 +26,7 @@ struct test_image {
   char interlace_tf;
   char color_type;
   char bit_depth;
+  FILE* alpha_fptr;
 };
 static void test_image_describe
   ( void* img, long int *width, long int *height, short *bit_depth,
@@ -39,6 +40,7 @@ static int test_image_get_text_word
   (struct test_image* img, char* buf, int count);
 static int test_file_get_text_word(FILE* img, char* buf, int count);
 static int test_image_get_ppm(struct test_image* img);
+static int test_image_get_alphapgm(struct test_image* img);
 
 void test_image_describe
   ( void* img_ptr, long int *width, long int *height, short *bit_depth,
@@ -180,6 +182,63 @@ int test_image_get_ppm(struct test_image* img) {
   return PNGPARTS_API_OK;
 }
 
+int test_image_get_alphapgm(struct test_image* img) {
+  int x, y;
+  char word_buf[32];
+  if (test_file_get_text_word
+      (img->alpha_fptr, word_buf, sizeof(word_buf)) <= 0)
+  {
+    return PNGPARTS_API_IO_ERROR;
+  } else if (strcmp("P2", word_buf) == 0){
+    int width, height, max_value;
+    /* read width */
+    if (test_file_get_text_word
+        (img->alpha_fptr, word_buf, sizeof(word_buf)) <= 0)
+    {
+      return PNGPARTS_API_IO_ERROR;
+    }
+    width = atoi(word_buf);
+    /* read height */
+    if (test_file_get_text_word
+        (img->alpha_fptr, word_buf, sizeof(word_buf)) <= 0)
+    {
+      return PNGPARTS_API_IO_ERROR;
+    }
+    height = atoi(word_buf);
+    /* read value maximum */
+    if (test_file_get_text_word
+        (img->alpha_fptr, word_buf, sizeof(word_buf)) <= 0)
+    {
+      return PNGPARTS_API_IO_ERROR;
+    }
+    max_value = atoi(word_buf);
+    /* check the space */{
+      if (width != img->width || height != img->height){
+        fprintf(stderr, "Alpha channel image is wrong size.\n");
+        return PNGPARTS_API_UNSUPPORTED;
+      }
+    }
+    for (y = 0; y < height; ++y) {
+      for (x = 0; x < width; ++x) {
+        unsigned char *const pixel = (&img->bytes[(y*img->width + x) * 4]);
+        int alpha;
+        /* read */
+        if (test_file_get_text_word
+            (img->alpha_fptr, word_buf, sizeof(word_buf)) <= 0)
+        {
+          return PNGPARTS_API_IO_ERROR;
+        }
+        alpha = atoi(word_buf);
+        /* put */
+        pixel[3] = alpha*255/max_value;
+      }
+    }
+  } else {
+    return PNGPARTS_API_UNSUPPORTED;
+  }
+  return PNGPARTS_API_OK;
+}
+
 int test_image_get_plte(FILE *pltefile, struct pngparts_png* plte_dst) {
   int x;
   char word_buf[32];
@@ -229,13 +288,13 @@ int test_image_get_plte(FILE *pltefile, struct pngparts_png* plte_dst) {
 int main(int argc, char**argv) {
   FILE *to_read = NULL, *to_write = NULL;
   char const* in_fname = NULL, *out_fname = NULL;
-  char const* plte_fname = NULL;
+  char const* plte_fname = NULL, *alpha_fname = NULL;
   struct pngparts_png writer;
   struct pngparts_z zwriter;
   struct pngparts_flate deflater;
   int help_tf = 0;
   int result = 0;
-  struct test_image img = { 0,0,NULL,NULL,0,2,8 };
+  struct test_image img = { 0,0,NULL,NULL,0,2,8,NULL };
   {
     int argi;
     for (argi = 1; argi < argc; ++argi) {
@@ -258,6 +317,11 @@ int main(int argc, char**argv) {
           argi += 1;
           plte_fname = argv[argi];
         }
+      } else if (strcmp("-a",argv[argi]) == 0){
+        if (argi+1 < argc){
+          argi += 1;
+          alpha_fname = argv[argi];
+        }
       } else if (in_fname == NULL) {
         in_fname = argv[argi];
       } else if (out_fname == NULL) {
@@ -274,6 +338,7 @@ int main(int argc, char**argv) {
         "  -c (type)          set color type\n"
         "  -b (depth)         set sample bit depth\n"
         "  -p (file)          read palette file\n"
+        "  -a (file)          read alpha channel file\n"
       );
       return 2;
     }
@@ -354,6 +419,35 @@ int main(int argc, char**argv) {
       return in_result;
     }
   }
+
+  /* input from alpha PGM */ if (alpha_fname != NULL){
+    FILE* alpha_file = fopen(alpha_fname, "rt");
+    int alpha_result;
+    if (alpha_file != NULL){
+      img.alpha_fptr = alpha_file;
+      alpha_result = test_image_get_alphapgm(&img);
+      fclose(alpha_file);
+    } else {
+      alpha_result = PNGPARTS_API_IO_ERROR;
+    }
+    if (alpha_result != PNGPARTS_API_OK){
+      /* quit early */
+      pngparts_pngwrite_free(&writer);
+      pngparts_zwrite_free(&zwriter);
+      pngparts_deflate_free(&deflater);
+      /* close */
+      free(img.bytes);
+      if (to_write != stdout) fclose(to_write);
+      if (to_read != stdin) fclose(to_read);
+      fflush(NULL);
+      if (alpha_result) {
+        fprintf(stderr, "\nResult code from alpha PGM %i: %s\n",
+          alpha_result, pngparts_api_strerror(alpha_result));
+      }
+      return alpha_result;
+    }
+  }
+
   /* input from palette file */ if (plte_fname != NULL){
     FILE* plte_file = fopen(plte_fname, "rt");
     int plte_result;
