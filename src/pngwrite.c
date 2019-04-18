@@ -748,7 +748,24 @@ int pngparts_pngwrite_idat_msg
       if (idat->filter_mode == 6)
         result = PNGPARTS_API_DONE;
       else {
-        result = PNGPARTS_API_OK;
+        int plte_result;
+        /* check palette struct */{
+          unsigned char static const plte_name[4] = {0x50,0x4C,0x54,0x45};
+          struct pngparts_png_chunk_cb const* cb =
+            pngparts_png_find_chunk_cb(p, plte_name);
+          if (cb != NULL){
+            struct pngparts_png_message msg = {
+                PNGPARTS_PNG_M_READY,
+                0,
+                {0x50,0x4C,0x54,0x45},
+                NULL
+              };
+            plte_result = pngparts_png_send_chunk_msg( p, cb, &msg);
+          } else plte_result = PNGPARTS_API_DONE;
+        }
+        if (plte_result == PNGPARTS_API_DONE){
+          result = PNGPARTS_API_OK;
+        } else result = PNGPARTS_API_NOT_READY;
       }
     }break;
   case PNGPARTS_PNG_M_START:
@@ -908,3 +925,119 @@ int pngparts_pngwrite_assign_idat_api
   }
 }
 /*END   IDAT*/
+
+
+/*BEGIN PLTE*/
+static int pngparts_pngwrite_plte_msg
+  (struct pngparts_png* p, void* cb_data, struct pngparts_png_message* msg);
+
+struct pngparts_pngwrite_plte {
+  int pos;
+  int sample;
+  int done;
+  struct pngparts_png_plte_item color;
+};
+int pngparts_pngwrite_plte_msg
+  (struct pngparts_png* p, void* cb_data, struct pngparts_png_message* msg)
+{
+  int result;
+  struct pngparts_pngwrite_plte *plte =
+    (struct pngparts_pngwrite_plte *)cb_data;
+  switch (msg->type) {
+  case PNGPARTS_PNG_M_READY:
+    {
+      if (plte->done)
+        result = PNGPARTS_API_DONE;
+      else {
+        if (pngparts_png_get_plte_size(p) > 0){
+          result = PNGPARTS_API_OK;
+        } else {
+          plte->done = 1;
+          result = PNGPARTS_API_DONE;
+        }
+      }
+    }break;
+  case PNGPARTS_PNG_M_START:
+    {
+      /* compute palette size */
+      long int chunk_size;
+      int palette_size;
+      plte->pos = 0;
+      plte->sample = 0;
+      /* prepare palette */ {
+        palette_size = pngparts_png_get_plte_size(p);
+      }
+      if (palette_size > 256) {
+        chunk_size = 768;
+      } else {
+        chunk_size = palette_size*3;
+      }
+      pngparts_png_set_chunk_size(p, chunk_size);
+      result = PNGPARTS_API_OK;
+    }break;
+  case PNGPARTS_PNG_M_PUT:
+    {
+      switch (plte->sample) {
+      case 0:
+        /* get the color from the palette */ {
+          plte->color = pngparts_png_get_plte_item(p, plte->pos);
+        }
+        msg->byte = plte->color.red;
+        plte->sample += 1;
+        break;
+      case 1:
+        msg->byte = plte->color.green;
+        plte->sample += 1;
+        break;
+      case 2:
+        msg->byte = plte->color.blue;
+        plte->sample = 0;
+        plte->pos += 1;
+        if (plte->pos >= pngparts_png_get_plte_size(p)) {
+          plte->sample = 4;
+          plte->done = 1;
+        }
+        break;
+      case 4:
+        /* unused */
+        break;
+      }
+      result = PNGPARTS_API_OK;
+    }break;
+  case PNGPARTS_PNG_M_FINISH:
+    {
+      result = PNGPARTS_API_OK;
+    }break;
+  case PNGPARTS_PNG_M_ALL_DONE:
+    {
+      result = PNGPARTS_API_OK;
+    }break;
+  case PNGPARTS_PNG_M_DESTROY:
+    {
+      free(plte);
+      result = PNGPARTS_API_OK;
+    }break;
+  default:
+    result = PNGPARTS_API_BAD_STATE;
+    break;
+  }
+  return result;
+}
+
+int pngparts_pngwrite_assign_plte_api(struct pngparts_png_chunk_cb* cb){
+  unsigned char static const name[4] = { 0x50,0x4C,0x54,0x45 };
+  struct pngparts_pngwrite_plte* ptr = (struct pngparts_pngwrite_plte*)malloc
+    (sizeof(struct pngparts_pngwrite_plte));
+  if (ptr == NULL) {
+    return PNGPARTS_API_MEMORY;
+  } else {
+    memcpy(cb->name, name, 4 * sizeof(unsigned char));
+    ptr->pos = -1;
+    ptr->sample = 0;
+    ptr->done = 0;
+    cb->cb_data = ptr;
+    cb->message_cb = pngparts_pngwrite_plte_msg;
+    return PNGPARTS_API_OK;
+  }
+}
+/*END   PLTE*/

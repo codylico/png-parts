@@ -80,9 +80,23 @@ void test_image_put_ppm(struct test_image* img) {
   }
 }
 
+void test_image_put_plte(FILE* pltefile, struct pngparts_png* plte_src){
+  int x;
+  int const plte_size = pngparts_png_get_plte_size(plte_src);
+  fprintf(pltefile, "palette4\n%i\n", plte_size);
+  for (x = 0; x < plte_size; ++x) {
+    struct pngparts_png_plte_item const pixel =
+      pngparts_png_get_plte_item(plte_src, x);
+    fprintf(pltefile, "%i %i %i %i\n",
+      pixel.red, pixel.green, pixel.blue, pixel.alpha);
+  }
+  return;
+}
+
 int main(int argc, char**argv) {
   FILE *to_read = NULL, *to_write = NULL;
   char const* in_fname = NULL, *out_fname = NULL;
+  char const* plte_fname = NULL;
   struct pngparts_png parser;
   struct pngparts_z zreader;
   struct pngparts_flate inflater;
@@ -94,6 +108,11 @@ int main(int argc, char**argv) {
     for (argi = 1; argi < argc; ++argi) {
       if (strcmp(argv[argi], "-?") == 0) {
         help_tf = 1;
+      } else if (strcmp("-p",argv[argi]) == 0){
+        if (argi+1 < argc){
+          argi += 1;
+          plte_fname = argv[argi];
+        }
       } else if (in_fname == NULL) {
         in_fname = argv[argi];
       } else if (out_fname == NULL) {
@@ -101,9 +120,12 @@ int main(int argc, char**argv) {
       }
     }
     if (help_tf) {
-      fprintf(stderr, "usage: test_pngread ... (infile) (outfile)\n"
+      fprintf(stderr,
+        "usage: test_pngread [...options...] (infile) (outfile)\n"
         "  -                  stdin/stdout\n"
         "  -?                 help message\n"
+        "options:\n"
+        "  -p (file)          palette output file\n"
       );
       return 2;
     }
@@ -183,6 +205,31 @@ int main(int argc, char**argv) {
   } while (0);
   /* output to PPM */ {
     test_image_put_ppm(&img);
+  }
+
+  /* output the palette */if (plte_fname != NULL){
+    FILE *pltefile;
+    if (to_write != stdout){
+      fclose(to_write);
+      to_write = stdout;
+    }
+    pltefile = fopen(plte_fname, "wt");
+    if (pltefile == NULL){
+      int errval = errno;
+      fprintf(stderr, "Failed to open '%s' for palette.\n\t%s\n",
+        in_fname, strerror(errval));
+      pngparts_pngread_free(&parser);
+      pngparts_zread_free(&zreader);
+      pngparts_inflate_free(&inflater);
+      /* close */
+      free(img.bytes);
+      if (to_write != stdout) fclose(to_write);
+      if (to_read != stdin) fclose(to_read);
+      return 1;
+    } else {
+      test_image_put_plte(pltefile, &parser);
+      fclose(pltefile);
+    }
   }
 
   /* cleanup */

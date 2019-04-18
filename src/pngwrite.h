@@ -51,6 +51,14 @@ int pngparts_pngwrite_assign_idat_api
   ( struct pngparts_png_chunk_cb* cb, struct pngparts_api_z const* z,
     int chunk_size);
 
+/*
+ * Assign an API for writing a PLTE chunk.
+ * - cb chunk callback
+ * @return OK on success
+ */
+PNGPARTS_API
+int pngparts_pngwrite_assign_plte_api( struct pngparts_png_chunk_cb* cb);
+
 #ifdef __cplusplus
 };
 #endif /*__cplusplus*/

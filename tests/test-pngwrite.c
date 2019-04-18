@@ -180,9 +180,56 @@ int test_image_get_ppm(struct test_image* img) {
   return PNGPARTS_API_OK;
 }
 
+int test_image_get_plte(FILE *pltefile, struct pngparts_png* plte_dst) {
+  int x;
+  char word_buf[32];
+  if (test_file_get_text_word(pltefile, word_buf, sizeof(word_buf)) <= 0){
+    return PNGPARTS_API_IO_ERROR;
+  } else if (strcmp("palette4", word_buf) == 0){
+    int width;
+    /* read width */
+    if (test_file_get_text_word(pltefile, word_buf, sizeof(word_buf)) <= 0){
+      return PNGPARTS_API_IO_ERROR;
+    }
+    width = atoi(word_buf);
+    /* allocate the space */{
+      int const resize_result = pngparts_png_set_plte_size(plte_dst, width);
+      if (resize_result != PNGPARTS_API_OK){
+        return resize_result;
+      }
+    }
+    for (x = 0; x < width; ++x) {
+      struct pngparts_png_plte_item pixel;
+      /* read */
+      if (test_file_get_text_word(pltefile, word_buf, sizeof(word_buf)) <= 0){
+        return PNGPARTS_API_IO_ERROR;
+      }
+      pixel.red = (unsigned char)atoi(word_buf);
+      if (test_file_get_text_word(pltefile, word_buf, sizeof(word_buf)) <= 0){
+        return PNGPARTS_API_IO_ERROR;
+      }
+      pixel.green = (unsigned char)atoi(word_buf);
+      if (test_file_get_text_word(pltefile, word_buf, sizeof(word_buf)) <= 0){
+        return PNGPARTS_API_IO_ERROR;
+      }
+      pixel.blue = (unsigned char)atoi(word_buf);
+      if (test_file_get_text_word(pltefile, word_buf, sizeof(word_buf)) <= 0){
+        return PNGPARTS_API_IO_ERROR;
+      }
+      pixel.alpha = (unsigned char)atoi(word_buf);
+      /* put */
+      pngparts_png_set_plte_item(plte_dst, x, pixel);
+    }
+  } else {
+    return PNGPARTS_API_UNSUPPORTED;
+  }
+  return PNGPARTS_API_OK;
+}
+
 int main(int argc, char**argv) {
   FILE *to_read = NULL, *to_write = NULL;
   char const* in_fname = NULL, *out_fname = NULL;
+  char const* plte_fname = NULL;
   struct pngparts_png writer;
   struct pngparts_z zwriter;
   struct pngparts_flate deflater;
@@ -206,6 +253,11 @@ int main(int argc, char**argv) {
         }
       } else if (strcmp(argv[argi], "-i") == 0) {
         img.interlace_tf = 1;
+      } else if (strcmp("-p",argv[argi]) == 0){
+        if (argi+1 < argc){
+          argi += 1;
+          plte_fname = argv[argi];
+        }
       } else if (in_fname == NULL) {
         in_fname = argv[argi];
       } else if (out_fname == NULL) {
@@ -217,9 +269,11 @@ int main(int argc, char**argv) {
         "usage: test_pngwrite [...options...] (infile) (outfile)\n"
         "  -                  stdin/stdout\n"
         "  -?                 help message\n"
+        "options:\n"
         "  -i                 enable interlacing\n"
         "  -c (type)          set color type\n"
         "  -b (depth)         set sample bit depth\n"
+        "  -p (file)          read palette file\n"
       );
       return 2;
     }
@@ -277,10 +331,8 @@ int main(int argc, char**argv) {
   }
   /* set PLTE callback */ {
     struct pngparts_png_chunk_cb plte_api;
-#if 0
-    pngparts_pngread_assign_plte_api(&plte_api);
+    pngparts_pngwrite_assign_plte_api(&plte_api);
     pngparts_png_add_chunk_cb(&writer, &plte_api);
-#endif /*0*/
   }
   img.fptr = to_read;
   /* input from PPM */ {
@@ -300,6 +352,32 @@ int main(int argc, char**argv) {
           in_result, pngparts_api_strerror(in_result));
       }
       return in_result;
+    }
+  }
+  /* input from palette file */ if (plte_fname != NULL){
+    FILE* plte_file = fopen(plte_fname, "rt");
+    int plte_result;
+    if (plte_file != NULL){
+      plte_result = test_image_get_plte(plte_file, &writer);
+      fclose(plte_file);
+    } else {
+      plte_result = PNGPARTS_API_IO_ERROR;
+    }
+    if (plte_result != PNGPARTS_API_OK){
+      /* quit early */
+      pngparts_pngwrite_free(&writer);
+      pngparts_zwrite_free(&zwriter);
+      pngparts_deflate_free(&deflater);
+      /* close */
+      free(img.bytes);
+      if (to_write != stdout) fclose(to_write);
+      if (to_read != stdin) fclose(to_read);
+      fflush(NULL);
+      if (plte_result) {
+        fprintf(stderr, "\nResult code from palette %i: %s\n",
+          plte_result, pngparts_api_strerror(plte_result));
+      }
+      return plte_result;
     }
   }
   do {
