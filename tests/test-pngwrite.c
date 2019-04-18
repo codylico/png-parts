@@ -37,6 +37,7 @@ static int test_image_resize
   ( void* img_ptr, long int width, long int height);
 static int test_image_get_text_word
   (struct test_image* img, char* buf, int count);
+static int test_file_get_text_word(FILE* img, char* buf, int count);
 static int test_image_get_ppm(struct test_image* img);
 
 void test_image_describe
@@ -92,13 +93,16 @@ void test_image_send_pixel
 }
 
 int test_image_get_text_word(struct test_image* img, char* buf, int count){
+  return test_file_get_text_word(img->fptr, buf, count);
+}
+int test_file_get_text_word(FILE* fptr, char* buf, int count){
   int ch;
   int i = 0;
   int const countm1 = count-1;
   /* scan past spaces */
-  ch = fgetc(img->fptr);
+  ch = fgetc(fptr);
   while (ch != EOF && isspace(ch)){
-    ch = fgetc(img->fptr);
+    ch = fgetc(fptr);
   }
   /* read the word */
   if (ch == EOF || countm1 <= 0){
@@ -108,7 +112,7 @@ int test_image_get_text_word(struct test_image* img, char* buf, int count){
     i += 1;
     if (i >= countm1)
       break;
-    ch = fgetc(img->fptr);
+    ch = fgetc(fptr);
   }
   /* NUL-terminate it */
   if (i >= countm1)
