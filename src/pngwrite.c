@@ -161,6 +161,7 @@ int pngparts_pngwrite_generate(struct pngparts_png* w){
               message.byte = 1;/*write mode */
               memcpy(message.name, chunk_name, 4);
               message.ptr = NULL;
+              w->chunk_size = 0;
               w->flags_tf |= PNGPARTS_PNG_CHUNK_RW;
               size_result = pngparts_png_send_chunk_msg(w, next_cb, &message);
               w->flags_tf &= ~PNGPARTS_PNG_CHUNK_RW;
