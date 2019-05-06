@@ -310,6 +310,7 @@ int pngparts_png_get_plte_size(struct pngparts_png const* p);
  * - i array index
  * - v color value
  */
+PNGPARTS_API
 void pngparts_png_set_plte_item
   (struct pngparts_png* p, int i, struct pngparts_png_plte_item v);
 /*
@@ -318,6 +319,7 @@ void pngparts_png_set_plte_item
  * - i array index
  * @return the color value at that index
  */
+PNGPARTS_API
 struct pngparts_png_plte_item pngparts_png_get_plte_item
   (struct pngparts_png const* p, int i);
 
@@ -328,6 +330,7 @@ struct pngparts_png_plte_item pngparts_png_get_plte_item
  * @return a palette index closest to the requested color, or
  *   -1 if the palette is empty
  */
+PNGPARTS_API
 int pngparts_png_nearest_plte_item
   (struct pngparts_png const* p, struct pngparts_png_plte_item color);
 
