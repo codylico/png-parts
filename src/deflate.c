@@ -176,6 +176,8 @@ int pngparts_deflate_ready_pair(struct pngparts_flate* fl){
   unsigned short const* const text = fl->inscription_text;
   if (block_length < 1)
     return 0;
+  else if (commit >= block_length)
+    return 0;
   else if (text[commit] >= 257 && text[commit] <= 285)
     return 1;
   else
@@ -236,6 +238,9 @@ int pngparts_deflate_queue_pair
     /* encode length */{
       struct pngparts_flate_extra length_extra =
         pngparts_flate_length_encode(length);
+      if (length_extra.literal == PNGPARTS_API_NOT_FOUND){
+        return PNGPARTS_API_NOT_FOUND;
+      }
       fl->inscription_text[inscription_pen] = length_extra.literal;
       inscription_pen += 1;
       if (length_extra.extra_bits > 0){
@@ -247,6 +252,9 @@ int pngparts_deflate_queue_pair
     /* encode distance */{
       struct pngparts_flate_extra distance_extra =
         pngparts_flate_distance_encode(distance);
+      if (distance_extra.literal == PNGPARTS_API_NOT_FOUND){
+        return PNGPARTS_API_NOT_FOUND;
+      }
       fl->inscription_text[inscription_pen] = distance_extra.literal;
       inscription_pen += 1;
       if (distance_extra.extra_bits > 0){
@@ -437,8 +445,10 @@ int pngparts_deflate_churn_input
               fl->inscription_commit += 1;
               fl->alt_inscription[2] = 256;
               distance_back = fl->alt_inscription[1];
-              pngparts_deflate_queue_pair
+              result = pngparts_deflate_queue_pair
                   (fl, fl->alt_inscription[0], fl->alt_inscription[1]);
+              if (result == PNGPARTS_API_NOT_FOUND)
+                  break;
               fl->short_pos -= 1;
               point += 1;
               pngparts_deflate_record_input(fl, present_value);
@@ -447,7 +457,7 @@ int pngparts_deflate_churn_input
           }
         }
         for (; i < fl->short_pos && fl->alt_inscription[0] < 256; ++i){
-          unsigned char present_value = fl->shortbuf[point];
+          int const present_value = (int)(fl->shortbuf[point]&255u);
           int const historic_value =
             pngparts_flate_history_get(fl, distance_back);
           int const posthistoric_value =
@@ -481,8 +491,10 @@ int pngparts_deflate_churn_input
         }
         if (i > 0){
           /* update the pair */
-          pngparts_deflate_queue_pair
+          result = pngparts_deflate_queue_pair
             (fl, fl->alt_inscription[0], distance_back);
+          if (result == PNGPARTS_API_NOT_FOUND)
+            break;
         }
         if (i < fl->short_pos){
           /* commit the latest pair */{
