@@ -1,7 +1,7 @@
 /*
  * PNG-parts
  * parts of a Portable Network Graphics implementation
- * Copyright 2018 Cody Licorish
+ * Copyright 2018-2019 Cody Licorish
  *
  * Licensed under the MIT License.
  *
@@ -14,9 +14,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-enum pngparts_pngread_flags {
-  PNGPARTS_PNGREAD_IHDR_FOUND = 8
-};
 
 static unsigned long int pngparts_pngread_get32(unsigned char const*);
 
@@ -64,7 +61,7 @@ int pngparts_pngread_parse(struct pngparts_png* p) {
        * 7  - IHDR handling
        */
     int ch;
-    if (p->flags_tf & 2) {
+    if (p->flags_tf & PNGPARTS_PNG_REPEAT_CHAR) {
       /* put dummy character */
       ch = -1;
     } else if (p->pos < p->size)
@@ -115,12 +112,12 @@ int pngparts_pngread_parse(struct pngparts_png* p) {
               p->check = pngparts_png_crc32_accum(p->check, chunk_name[i]);
             }
           }
-          if ((p->flags_tf & PNGPARTS_PNGREAD_IHDR_FOUND) == 0) {
+          if ((p->flags_tf & PNGPARTS_PNG_IHDR_DONE) == 0) {
             if (memcmp(chunk_name, "\x49\x48\x44\x52", 4) == 0) {
               if (p->chunk_size == 13) {
                 state = 7;
                 shortpos = 0;
-                p->flags_tf |= PNGPARTS_PNGREAD_IHDR_FOUND;
+                p->flags_tf |= PNGPARTS_PNG_IHDR_DONE;
               } else result = PNGPARTS_API_BAD_HDR;
             } else {
               result = PNGPARTS_API_MISSING_HDR;
@@ -339,9 +336,9 @@ int pngparts_pngread_parse(struct pngparts_png* p) {
     p->shortpos = shortpos;
     if (result != PNGPARTS_API_OK) {
       break;
-    } else if (p->flags_tf & 2) {
+    } else if (p->flags_tf & PNGPARTS_PNG_REPEAT_CHAR) {
       /* reset the flag */
-      p->flags_tf &= ~2;
+      p->flags_tf &= ~PNGPARTS_PNG_REPEAT_CHAR;
       p->pos += 1;
     } else if (ch >= 0) {
       p->pos += 1;
@@ -351,7 +348,7 @@ int pngparts_pngread_parse(struct pngparts_png* p) {
   p->state = (short)state;
   p->shortpos = (short)shortpos;
   if (result) {
-    p->flags_tf |= 2;
+    p->flags_tf |= PNGPARTS_PNG_REPEAT_CHAR;
   }
   return result;
 }
@@ -555,40 +552,12 @@ int pngparts_pngread_start_line
   unsigned long int buffer_length;
   {
     unsigned long int line_length = idat->pixel_size;
-    switch (idat->level) {
-    case 0:
-      idat->line_width = p->header.width;
-      idat->line_height = p->header.height;
-      break;
-    case 7:
-      idat->line_width = p->header.width;
-      idat->line_height = p->header.height/2;
-      break;
-    case 6:
-      idat->line_width = (p->header.width / 2);
-      idat->line_height = (p->header.height+1) / 2;
-      break;
-    case 5:
-      idat->line_width = ((p->header.width + 1) / 2);
-      idat->line_height = (p->header.height +1)/ 4;
-      break;
-    case 4:
-      idat->line_width = ((p->header.width + 1) / 4);
-      idat->line_height = (p->header.height + 3) / 4;
-      break;
-    case 3:
-      idat->line_width = ((p->header.width + 3) / 4);
-      idat->line_height = (p->header.height + 3) / 8;
-      break;
-    case 2:
-      idat->line_width = ((p->header.width + 3) / 8);
-      idat->line_height = (p->header.height + 7) / 8;
-      break;
-    case 1:
-      idat->line_width = ((p->header.width + 7) / 8);
-      idat->line_height = (p->header.height + 7) / 8;
-      break;
-    }
+    struct pngparts_png_size const line_size =
+      pngparts_png_adam7_pass_size(
+        p->header.width, p->header.height, idat->level
+      );
+    idat->line_width = line_size.width;
+    idat->line_height = line_size.height;
     /*fprintf(stderr, "pass %i: width %lu height %lu\n",
       idat->level, idat->line_width, idat->line_height);*/
     if (idat->line_width == 0 || idat->line_height == 0) {
@@ -664,6 +633,9 @@ int pngparts_pngread_idat_msg
           if (line_out == PNGPARTS_API_OVERFLOW) {
             /* give up */
             idat->filter_mode = 5;
+            break;
+          } else if (line_out == PNGPARTS_API_MEMORY){
+            result = PNGPARTS_API_MEMORY;
             break;
           }
         }

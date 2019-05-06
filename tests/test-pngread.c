@@ -1,7 +1,7 @@
 /*
  * PNG-parts
  * parts of a Portable Network Graphics implementation
- * Copyright 2018 Cody Licorish
+ * Copyright 2018-2019 Cody Licorish
  *
  * Licensed under the MIT License.
  *
@@ -16,13 +16,13 @@
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
-#include "test-pngread.h"
 
 struct test_image {
   int width;
   int height;
   unsigned char* bytes;
   FILE* outfile;
+  FILE* alphafile;
 };
 static int test_image_header
   ( void* img, long int width, long int height, short bit_depth,
@@ -39,11 +39,11 @@ int test_image_header
   fprintf(stderr, "{\"image info\":{\n"
     "  \"width\": %li,\n"
     "  \"height\": %li,\n"
-    "  \"bit depth\": %i\n"
-    "  \"color type\": %i\n"
-    "  \"compression\": %i\n"
-    "  \"filter\": %i\n"
-    "  \"interlace\": %i\n}\n",
+    "  \"bit depth\": %i,\n"
+    "  \"color type\": %i,\n"
+    "  \"compression\": %i,\n"
+    "  \"filter\": %i,\n"
+    "  \"interlace\": %i\n}}\n",
     width, height, bit_depth, color_type, compression, filter, interlace
   );
   if (width > 2000 || height > 2000) return PNGPARTS_API_UNSUPPORTED;
@@ -81,20 +81,56 @@ void test_image_put_ppm(struct test_image* img) {
   }
 }
 
+void test_image_put_alphapgm(struct test_image* img) {
+  int x, y;
+  fprintf(img->alphafile, "P2\n%i %i\n255\n", img->width, img->height);
+  for (y = 0; y < img->height; ++y) {
+    for (x = 0; x < img->width; ++x) {
+      unsigned char *const pixel = (&img->bytes[(y*img->width + x) * 4]);
+      fprintf(img->alphafile, "%i\n", pixel[3]);
+    }
+  }
+  return;
+}
+
+void test_image_put_plte(FILE* pltefile, struct pngparts_png* plte_src){
+  int x;
+  int const plte_size = pngparts_png_get_plte_size(plte_src);
+  fprintf(pltefile, "palette4\n%i\n", plte_size);
+  for (x = 0; x < plte_size; ++x) {
+    struct pngparts_png_plte_item const pixel =
+      pngparts_png_get_plte_item(plte_src, x);
+    fprintf(pltefile, "%i %i %i %i\n",
+      pixel.red, pixel.green, pixel.blue, pixel.alpha);
+  }
+  return;
+}
+
 int main(int argc, char**argv) {
   FILE *to_read = NULL, *to_write = NULL;
   char const* in_fname = NULL, *out_fname = NULL;
+  char const* plte_fname = NULL, *alpha_fname = NULL;
   struct pngparts_png parser;
   struct pngparts_z zreader;
   struct pngparts_flate inflater;
   int help_tf = 0;
   int result = 0;
-  struct test_image img = { 0,0,NULL };
+  struct test_image img = { 0,0,NULL,NULL,NULL };
   {
     int argi;
     for (argi = 1; argi < argc; ++argi) {
       if (strcmp(argv[argi], "-?") == 0) {
         help_tf = 1;
+      } else if (strcmp("-p",argv[argi]) == 0){
+        if (argi+1 < argc){
+          argi += 1;
+          plte_fname = argv[argi];
+        }
+      } else if (strcmp("-a",argv[argi]) == 0){
+        if (argi+1 < argc){
+          argi += 1;
+          alpha_fname = argv[argi];
+        }
       } else if (in_fname == NULL) {
         in_fname = argv[argi];
       } else if (out_fname == NULL) {
@@ -102,9 +138,13 @@ int main(int argc, char**argv) {
       }
     }
     if (help_tf) {
-      fprintf(stderr, "usage: test_pngread ... (infile) (outfile)\n"
+      fprintf(stderr,
+        "usage: test_pngread [...options...] (infile) (outfile)\n"
         "  -                  stdin/stdout\n"
         "  -?                 help message\n"
+        "options:\n"
+        "  -p (file)          palette output file\n"
+        "  -a (file)          alpha channel output file\n"
       );
       return 2;
     }
@@ -182,11 +222,65 @@ int main(int argc, char**argv) {
     }
     if (result < 0) break;
   } while (0);
-  pngparts_zread_free(&zreader);
-  pngparts_pngread_free(&parser);
   /* output to PPM */ {
     test_image_put_ppm(&img);
   }
+
+  /* output the palette */if (plte_fname != NULL){
+    FILE *pltefile;
+    if (to_write != stdout){
+      fclose(to_write);
+      to_write = stdout;
+    }
+    pltefile = fopen(plte_fname, "wt");
+    if (pltefile == NULL){
+      int errval = errno;
+      fprintf(stderr, "Failed to open '%s' for palette.\n\t%s\n",
+        plte_fname, strerror(errval));
+      pngparts_pngread_free(&parser);
+      pngparts_zread_free(&zreader);
+      pngparts_inflate_free(&inflater);
+      /* close */
+      free(img.bytes);
+      if (to_write != stdout) fclose(to_write);
+      if (to_read != stdin) fclose(to_read);
+      return 1;
+    } else {
+      test_image_put_plte(pltefile, &parser);
+      fclose(pltefile);
+    }
+  }
+
+  /* output the alpha channel */if (alpha_fname != NULL){
+    FILE *alphafile;
+    if (to_write != stdout){
+      fclose(to_write);
+      to_write = stdout;
+    }
+    alphafile = fopen(alpha_fname, "wt");
+    if (alphafile == NULL){
+      int errval = errno;
+      fprintf(stderr, "Failed to open '%s' for alpha channel.\n\t%s\n",
+        alpha_fname, strerror(errval));
+      pngparts_pngread_free(&parser);
+      pngparts_zread_free(&zreader);
+      pngparts_inflate_free(&inflater);
+      /* close */
+      free(img.bytes);
+      if (to_write != stdout) fclose(to_write);
+      if (to_read != stdin) fclose(to_read);
+      return 1;
+    } else {
+      img.alphafile = alphafile;
+      test_image_put_alphapgm(&img);
+      fclose(alphafile);
+    }
+  }
+
+  /* cleanup */
+  pngparts_pngread_free(&parser);
+  pngparts_zread_free(&zreader);
+  pngparts_inflate_free(&inflater);
   /* close */
   free(img.bytes);
   if (to_write != stdout) fclose(to_write);

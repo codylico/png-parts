@@ -21,6 +21,7 @@ int pngparts_api_info(void){
 
 char const* pngparts_api_strerror(int result){
   switch (result){
+  case PNGPARTS_API_MISSING_PUT: return "missing output byte from callback";
   case PNGPARTS_API_LOOPED_STATE: return "state machine caught in a loop";
   case PNGPARTS_API_CHUNK_TOO_LONG: return "chunk length too large";
   case PNGPARTS_API_SHORT_IDAT: return "too few IDAT chunk data for pixels";
@@ -49,6 +50,7 @@ char const* pngparts_api_strerror(int result){
   case PNGPARTS_API_EOF: return "stream too quick to finish";
   case PNGPARTS_API_OK: return "all is good";
   case PNGPARTS_API_DONE: return "the stream is done";
+  case PNGPARTS_API_NOT_READY: return "the callback is not ready";
   default: return "?";
   }
 }

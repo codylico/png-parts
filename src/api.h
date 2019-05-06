@@ -42,6 +42,8 @@ enum pngparts_api_flag {
  * Errors
  */
 enum pngparts_api_error {
+  /* chunk callback did not set a valid output byte */
+  PNGPARTS_API_MISSING_PUT = -26,
   /* state machine caught in a loop */
   PNGPARTS_API_LOOPED_STATE = -25,
   /* chunk size too long */
@@ -97,7 +99,9 @@ enum pngparts_api_error {
   /* output buffer overflow */
   PNGPARTS_API_OVERFLOW = 1,
   /* the stream is done; quit pushing data */
-  PNGPARTS_API_DONE = 2
+  PNGPARTS_API_DONE = 2,
+  /* the callback is not yet ready */
+  PNGPARTS_API_NOT_READY = 3
 };
 /*
  * Expectation mode for zlib stream processing.
@@ -286,13 +290,47 @@ typedef void (*pngparts_api_image_put_cb)
     unsigned int red, unsigned int green, unsigned int blue,
     unsigned int alpha);
 
+/*
+ * Callback for describing the image to process.
+ * - img callback data
+ * - width output for image width
+ * - height output for image height
+ * - bit_depth output for sample depth
+ * - color_type output for PNG color bit field
+ * - compression output for method of compression (should be zero)
+ * - filter output for filter method (should be zero)
+ * - interlace output for interlace method (should be zero or one)
+ */
+typedef void (*pngparts_api_image_describe_cb)
+  ( void* img, long int *width, long int *height, short *bit_depth,
+    short *color_type, short *compression, short *filter, short *interlace);
+
+/*
+ * Get a color from the image.
+ * - img image
+ * - x x-coordinate
+ * - y y-coordinate
+ * - red output for red sample
+ * - green output for green sample
+ * - blue output for blue sample
+ * - alpha output for alpha sample
+ */
+typedef void (*pngparts_api_image_get_cb)
+  ( void* img, long int x, long int y,
+    unsigned int *red, unsigned int *green, unsigned int *blue,
+    unsigned int *alpha);
+
 struct pngparts_api_image {
   /* callback data */
   void* cb_data;
-  /* image start callback */
+  /* image start callback (read only)*/
   pngparts_api_image_start_cb start_cb;
-  /* image color posting callback */
+  /* image color posting callback (read only)*/
   pngparts_api_image_put_cb put_cb;
+  /* image describe callback (write only)*/
+  pngparts_api_image_describe_cb describe_cb;
+  /* image color fetch callback (write only)*/
+  pngparts_api_image_get_cb get_cb;
 };
 
 /*

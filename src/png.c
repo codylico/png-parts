@@ -2,6 +2,7 @@
 #include "png.h"
 #include <string.h>
 #include <stdlib.h>
+#include <limits.h>
 
 struct pngparts_png_chunk_link {
   struct pngparts_png_chunk_cb cb;
@@ -137,6 +138,48 @@ void pngparts_png_adam7_reverse_xy
     break;
   }
 }
+
+struct pngparts_png_size pngparts_png_adam7_pass_size
+  (unsigned long int width, unsigned long int height, int level)
+{
+  struct pngparts_png_size out;
+  switch (level) {
+  case 7:
+    out.width = width;
+    out.height = height/2;
+    break;
+  case 6:
+    out.width = (width / 2);
+    out.height = (height+1) / 2;
+    break;
+  case 5:
+    out.width = ((width + 1) / 2);
+    out.height = (height +1)/ 4;
+    break;
+  case 4:
+    out.width = ((width + 1) / 4);
+    out.height = (height + 3) / 4;
+    break;
+  case 3:
+    out.width = ((width + 3) / 4);
+    out.height = (height + 3) / 8;
+    break;
+  case 2:
+    out.width = ((width + 3) / 8);
+    out.height = (height + 7) / 8;
+    break;
+  case 1:
+    out.width = ((width + 7) / 8);
+    out.height = (height + 7) / 8;
+    break;
+  default:
+    out.width = width;
+    out.height = height;
+    break;
+  }
+  return out;
+}
+
 int pngparts_png_paeth_predict(int left, int up, int corner) {
   int const p = left + up - corner;
   int const pa = abs(p - left);
@@ -215,6 +258,11 @@ void pngparts_png_buffer_setup
 int pngparts_png_buffer_done(struct pngparts_png const * p){
   return p->pos == p->size || p->state == 4;
 }
+
+int pngparts_png_buffer_used(struct pngparts_png const* p){
+  return p->pos;
+}
+
 void pngparts_png_set_image_cb
   (struct pngparts_png* p, struct pngparts_api_image const* img_cb)
 {
@@ -261,6 +309,28 @@ struct pngparts_png_chunk_cb const* pngparts_png_find_chunk_cb
   }
   return link_ptr != NULL ? &link_ptr->cb : NULL;
 }
+
+struct pngparts_png_chunk_cb const* pngparts_png_find_ready_cb
+  (struct pngparts_png *p)
+{
+  struct pngparts_png_chunk_link const* link_ptr;
+  link_ptr = p->chunk_cbs;
+  while (link_ptr != NULL) {
+    struct pngparts_png_message message;
+    int result;
+    message.byte = 0;
+    memcpy(message.name, link_ptr->cb.name, 4 * sizeof(unsigned char));
+    message.ptr = NULL;
+    message.type = PNGPARTS_PNG_M_READY;
+    result = pngparts_png_send_chunk_msg(p, &link_ptr->cb, &message);
+    if (result == PNGPARTS_API_OK)
+      break;
+    else
+      link_ptr = link_ptr->next;
+  }
+  return link_ptr != NULL ? &link_ptr->cb : NULL;
+}
+
 void pngparts_png_remove_chunk_cb
   (struct pngparts_png* p, unsigned char const* name)
 {
@@ -328,9 +398,20 @@ int pngparts_png_broadcast_chunk_msg
   }
   return first_result;
 }
+
 long int pngparts_png_chunk_remaining(struct pngparts_png const* p) {
   return p->chunk_size;
 }
+
+int pngparts_png_set_chunk_size(struct pngparts_png* p, long int size){
+  if (p->flags_tf & PNGPARTS_PNG_CHUNK_RW){
+    if (size >= 0 && size < 0x7fffFFFF){
+      p->chunk_size = (unsigned long int)size;
+      return PNGPARTS_API_OK;
+    } else return PNGPARTS_API_CHUNK_TOO_LONG;
+  } else return PNGPARTS_API_BAD_STATE;
+}
+
 void pngparts_png_set_plte_item
   (struct pngparts_png* p, int i, struct pngparts_png_plte_item v)
 {
@@ -341,6 +422,31 @@ struct pngparts_png_plte_item pngparts_png_get_plte_item
   (struct pngparts_png const* p, int i)
 {
   return p->palette[i];
+}
+
+int pngparts_png_nearest_plte_item
+  (struct pngparts_png const* p, struct pngparts_png_plte_item color)
+{
+  int out = -1;
+  int out_diff = INT_MAX;
+  int const color_red = color.red;
+  int const color_green = color.green;
+  int const color_blue = color.blue;
+  int const color_alpha = color.alpha;
+  int i;
+  for (i = 0; i < p->palette_count; ++i){
+    struct pngparts_png_plte_item const item = p->palette[i];
+    int const red_diff   = abs(item.red-color_red);
+    int const green_diff = abs(item.green-color_green);
+    int const blue_diff  = abs(item.blue-color_blue);
+    int const alpha_diff = abs(item.alpha-color_alpha);
+    int const total_diff = red_diff + green_diff + blue_diff + alpha_diff;
+    if (total_diff < out_diff){
+      out_diff = total_diff;
+      out = i;
+    }
+  }
+  return out;
 }
 
 int pngparts_png_get_plte_size(struct pngparts_png const* p) {

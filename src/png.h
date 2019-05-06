@@ -1,7 +1,7 @@
 /*
  * PNG-parts
  * parts of a Portable Network Graphics implementation
- * Copyright 2018 Cody Licorish
+ * Copyright 2018-2019 Cody Licorish
  *
  * Licensed under the MIT License.
  *
@@ -21,6 +21,15 @@ struct pngparts_png;
 struct pngparts_png_chunk_link;
 
 /*
+ * structure flags
+ */
+enum pngparts_png_flags {
+  PNGPARTS_PNG_REPEAT_CHAR = 2,
+  PNGPARTS_PNG_CHUNK_RW = 4,
+  PNGPARTS_PNG_IHDR_DONE = 8
+};
+
+/*
  * CRC32 checksum
  */
 struct pngparts_png_crc32 {
@@ -37,21 +46,35 @@ struct pngparts_png_plte_item {
 };
 
 /*
+ * Size of an Adam7 interlace pass.
+ */
+struct pngparts_png_size {
+  unsigned long int width;
+  unsigned long int height;
+};
+
+/*
  * Message types for PNG chunk callbacks.
  */
 enum pngparts_png_message_type {
   /* Readiness check */
   PNGPARTS_PNG_M_READY = 1,
-  /* Byte getter (send byte to the callback) */
+  /* Byte getter (send byte to the callback)
+   * - byte the next byte in the chunk
+   */
   PNGPARTS_PNG_M_GET = 2,
-  /* Byte putter (receive byte from the callback) */
+  /* Byte putter (receive byte from the callback)
+   * - byte callback should set this byte
+   */
   PNGPARTS_PNG_M_PUT = 3,
   /* Start this chunk
    * - byte nonzero in write mode, zero in read mode
-   * - ptr points to an unsigned long int, get or set chunk length
    */
   PNGPARTS_PNG_M_START = 4,
-  /* Finish this chunk */
+  /* Finish this chunk
+   * - byte zero if chunk processing went well, BAD_CRC if
+   *        the checksum was found corrupted
+   */
   PNGPARTS_PNG_M_FINISH = 5,
   /* At end of stream */
   PNGPARTS_PNG_M_ALL_DONE = 6,
@@ -93,11 +116,18 @@ struct pngparts_png_header {
   long int height;
   /* bit depth per sample (8 with RGBA = 32 bpp) */
   short int bit_depth;
-  /* color type bits (6 = RGBA) */
+  /*
+   * color type bits (R=red, G=green, B=blue, A=alpha)
+   * - 0 = R
+   * - 2 = RGB
+   * - 3 = palette/RGBA
+   * - 4 = RA
+   * - 6 = RGBA
+   */
   short int color_type;
   /* compression method (0 = deflate) */
   short int compression;
-  /* filter type */
+  /* filter type (0=adaptive) */
   short int filter;
   /* interlace method (0 = no interlace, 1 = Adam7) */
   short int interlace;
@@ -114,6 +144,8 @@ struct pngparts_png {
   /* buffer for short byte chunks */
   unsigned char shortbuf[15];
   /*
+   * 2 - repeat character
+   * 4 - chunk size unlocked
    * 8 - IHDR crossed
    */
   unsigned char flags_tf;
@@ -155,6 +187,18 @@ struct pngparts_png {
 PNGPARTS_API
 void pngparts_png_adam7_reverse_xy
   (int level, long int *dx, long int *dy, long int sx, long int sy);
+
+/*
+ * Compute the size of a particular pass of Adam7.
+ * - width the width of the original image
+ * - height the height of the original image
+ * - level index of pass (between 1 and 7 inclusive)
+ * @return the size of the pass, or the original image size
+ *   if an invalid pass index is given
+ */
+PNGPARTS_API
+struct pngparts_png_size pngparts_png_adam7_pass_size
+  (unsigned long int width, unsigned long int height, int level);
 
 /*
  * Compute the Paeth prediction.
@@ -211,6 +255,7 @@ struct pngparts_png_crc32 pngparts_png_crc32_accum
 PNGPARTS_API
 void pngparts_png_buffer_setup
   (struct pngparts_png *p, void* buf, int size);
+
 /*
  * Check if the reader has used up the buffer.
  * - p PNG structure
@@ -218,6 +263,14 @@ void pngparts_png_buffer_setup
  */
 PNGPARTS_API
 int pngparts_png_buffer_done(struct pngparts_png const* p);
+
+/*
+ * Check how much of the buffer the writer has used.
+ * - p PNG structure
+ * @return number of bytes that the buffer has used
+ */
+PNGPARTS_API
+int pngparts_png_buffer_used(struct pngparts_png const* p);
 
 /*
  * Get the image callback.
@@ -257,16 +310,29 @@ int pngparts_png_get_plte_size(struct pngparts_png const* p);
  * - i array index
  * - v color value
  */
+PNGPARTS_API
 void pngparts_png_set_plte_item
   (struct pngparts_png* p, int i, struct pngparts_png_plte_item v);
 /*
  * Get a palette item.
- * - p the PNG structure to modify
+ * - p the PNG structure to read
  * - i array index
  * @return the color value at that index
  */
+PNGPARTS_API
 struct pngparts_png_plte_item pngparts_png_get_plte_item
   (struct pngparts_png const* p, int i);
+
+/*
+ * Find a nearest palette item.
+ * - p the PNG structure to inspect
+ * - color the color and alpha for which to search
+ * @return a palette index closest to the requested color, or
+ *   -1 if the palette is empty
+ */
+PNGPARTS_API
+int pngparts_png_nearest_plte_item
+  (struct pngparts_png const* p, struct pngparts_png_plte_item color);
 
 /*
  * Add a chunk callback.
@@ -302,6 +368,15 @@ struct pngparts_png_chunk_cb const* pngparts_png_find_chunk_cb
   ( struct pngparts_png *p, unsigned char const* name);
 
 /*
+ * Find the next chunk callback that is ready.
+ * - p PNG structure
+ * @return a pointer to the next ready chunk callback if found, NULL otherwise
+ */
+PNGPARTS_API
+struct pngparts_png_chunk_cb const* pngparts_png_find_ready_cb
+  ( struct pngparts_png *p);
+
+/*
  * Send a message to a chunk callback.
  * - p PNG structure
  * - cb callback to which to send a message
@@ -319,6 +394,15 @@ int pngparts_png_send_chunk_msg
  */
 PNGPARTS_API
 long int pngparts_png_chunk_remaining(struct pngparts_png const* p);
+
+/*
+ * Set the next chunk size.
+ * - p PNG structure
+ * - size number of bytes in a chunk
+ * @return OK on success, other negative API value otherwise
+ */
+PNGPARTS_API
+int pngparts_png_set_chunk_size(struct pngparts_png* p, long int size);
 
 /*
  * Boradcast a message to all chunk callbacks.
