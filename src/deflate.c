@@ -516,7 +516,7 @@ int pngparts_deflate_churn_input
         }
       }
     }
-    /* check for edge case */if (ch < 0){
+    if (result == PNGPARTS_API_OVERFLOW){
       /* catch up end of block */{
         for (; fl->inscription_commit < fl->block_length;
             ++fl->inscription_commit)
@@ -531,6 +531,8 @@ int pngparts_deflate_churn_input
             (fl, fl->inscription_text[fl->inscription_commit]);
         }
       }
+    }
+    /* check for edge case */if (ch < 0){
       /* plain put */
       result = pngparts_deflate_queue_check(fl, fl->short_pos);
       if (result == PNGPARTS_API_OK){
