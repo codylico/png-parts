@@ -678,15 +678,16 @@ unsigned int pngparts_flate_hash_check
   unsigned int history_out = 0;
   unsigned int const adjusted_pos = hash->pos + 2;
   /* hash it */
-  unsigned char const hash_key =
-    (chs[0]^chs[1]^chs[2])&(hash->first_max);
+  unsigned char const hash_key = (chs[0]^chs[1]^chs[2])&(hash->first_max);
   /* inspect the hash */{
     unsigned int trouble_count = 0;
+    unsigned int point_tracking;
     unsigned short *prev_point;
     unsigned int const hash_size = hash->next_size;
     if (start == 0){
       /* use the first pointer as the previous pointer */
       prev_point = hash->first+hash_key;
+      point_tracking = adjusted_pos;
     } else {
       /* compute the location of the previous pointer */
       unsigned int history_in = start;
@@ -695,6 +696,7 @@ unsigned int pngparts_flate_hash_check
       }
       history_in = (adjusted_pos) - history_in;
       prev_point = hash->next + history_in;
+      point_tracking = history_in;
     }
     /* traverse the list */
     for (trouble_count = 0; trouble_count < hash_size; ++trouble_count){
@@ -704,6 +706,19 @@ unsigned int pngparts_flate_hash_check
       current_point = *prev_point;
       if (current_point == USHRT_MAX)
         break;
+      /* check for write boundary crossing */{
+        if (current_point <= adjusted_pos
+        &&  point_tracking > adjusted_pos)
+        {
+          *prev_point = USHRT_MAX;
+          break;
+        } else if (current_point <= adjusted_pos
+        &&  point_tracking <= current_point)
+        {
+          *prev_point = USHRT_MAX;
+          break;
+        } else point_tracking = current_point;
+      }
       cp1 = (current_point+1)%(hash->next_size);
       cp2 = (current_point+2)%(hash->next_size);
       /* inspect the history */
