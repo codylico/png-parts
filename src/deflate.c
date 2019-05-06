@@ -302,10 +302,6 @@ int pngparts_deflate_churn_input
     fl->shortbuf[3] = (unsigned char)(ch&255);
     fl->short_pos += 1;
   }
-  if (fl->block_length == 4711){
-    static int zero = 0;
-    zero += 1;
-  }
   switch (fl->block_level){
   case PNGPARTS_FLATE_OFF:
     /* plain put */
