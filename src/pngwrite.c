@@ -749,11 +749,17 @@ int pngparts_pngwrite_generate_chunk
   &&  (idat->outlen < idat->outsize))
   {
     int const churn_mode = PNGPARTS_API_Z_FINISH;
-    (*idat->z.churn_cb)(idat->z.cb_data, churn_mode);
-    idat->outlen = (*idat->z.output_left_cb)(idat->z.cb_data);
-    if (idat->outlen == 0){
-      /* stream is really done */
-      idat->filter_mode = 6;
+    int const churn_result =
+      (*idat->z.churn_cb)(idat->z.cb_data, churn_mode);
+    if (churn_result < PNGPARTS_API_OK){
+      /* propagate the error constant */
+      total_result = churn_result;
+    } else {
+      idat->outlen = (*idat->z.output_left_cb)(idat->z.cb_data);
+      if (idat->outlen == 0){
+        /* stream is really done */
+        idat->filter_mode = 6;
+      }
     }
   }
   idat->outpos = 0;
