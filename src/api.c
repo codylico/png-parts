@@ -21,6 +21,7 @@ int pngparts_api_info(void){
 
 char const* pngparts_api_strerror(int result){
   switch (result){
+  case PNGPARTS_API_TOO_WIDE: return "image width too large to process";
   case PNGPARTS_API_MISSING_PUT: return "missing output byte from callback";
   case PNGPARTS_API_LOOPED_STATE: return "state machine caught in a loop";
   case PNGPARTS_API_CHUNK_TOO_LONG: return "chunk length too large";

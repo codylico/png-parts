@@ -13,9 +13,16 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 
 
 static unsigned long int pngparts_pngread_get32(unsigned char const*);
+/*
+ * Execute `calloc`, checking for integer overflow.
+ * - sz the desired allocation size
+ * @return a pointer to the allocation on success, NULL otherwise
+ */
+static void* pngparts_pngread_calloc(unsigned long int sz);
 
 unsigned long int pngparts_pngread_get32(unsigned char const* b) {
   return (((unsigned long int)(b[0] & 255)) << 24)
@@ -24,6 +31,16 @@ unsigned long int pngparts_pngread_get32(unsigned char const* b) {
     | (((unsigned long int)(b[3] & 255)) << 0);
 }
 
+void* pngparts_pngread_calloc(unsigned long int sz){
+  /*
+   * size_t is not guaranteed larger than long in C,
+   *   so check against a runtime value
+   */
+  size_t const static max_sz = (size_t)(~0ul);
+  if (sz > max_sz)
+    return NULL;
+  else return calloc((size_t)sz, sizeof(unsigned char));
+}
 
 void pngparts_pngread_init(struct pngparts_png* p) {
   p->state = 0;
@@ -563,6 +580,11 @@ int pngparts_pngread_start_line
     if (idat->line_width == 0 || idat->line_height == 0) {
       return PNGPARTS_API_OVERFLOW;
     }
+    if (idat->pixel_size == 0
+    ||  idat->line_width >= ULONG_MAX/idat->pixel_size)
+    {
+      return PNGPARTS_API_TOO_WIDE;
+    }
     line_length = idat->line_width*idat->pixel_size;
     buffer_length = (line_length + 7) >> 3;
   }
@@ -571,7 +593,7 @@ int pngparts_pngread_start_line
     unsigned char* new_buffer;
     free(idat->outbuf);
     idat->outbuf = NULL;
-    new_buffer = (unsigned char*)calloc(buffer_length, sizeof(unsigned char));
+    new_buffer = (unsigned char*)pngparts_pngread_calloc(buffer_length);
     if (new_buffer == NULL) {
       return PNGPARTS_API_MEMORY;
     }

@@ -35,6 +35,14 @@ static void pngparts_pngwrite_put16clamp16(unsigned char* b, unsigned int w);
 static void pngparts_pngwrite_put8clamp16(unsigned char* b, unsigned int w);
 
 static void pngparts_pngwrite_put32(unsigned char* b, unsigned long int w);
+
+/*
+ * Execute `calloc`, checking for integer overflow.
+ * - sz the desired allocation size
+ * @return a pointer to the allocation on success, NULL otherwise
+ */
+static void* pngparts_pngwrite_calloc(unsigned long int sz);
+
 static int pngparts_pngwrite_signal_finish(struct pngparts_png* p);
 
 /*
@@ -90,6 +98,17 @@ int pngparts_pngwrite_signal_finish(struct pngparts_png* w){
   memcpy(message.name, w->active_chunk_cb->name, 4);
   message.ptr = NULL;
   return pngparts_png_send_chunk_msg(w, w->active_chunk_cb, &message);
+}
+
+void* pngparts_pngwrite_calloc(unsigned long int sz){
+  /*
+   * size_t is not guaranteed larger than long in C,
+   *   so check against a runtime value
+   */
+  size_t const static max_sz = (size_t)(~0ul);
+  if (sz > max_sz)
+    return NULL;
+  else return calloc((size_t)sz, sizeof(unsigned char));
 }
 
 void pngparts_pngwrite_init(struct pngparts_png* w){
@@ -427,6 +446,11 @@ int pngparts_pngwrite_start_line
     if (idat->line_width == 0 || idat->line_height == 0) {
       return PNGPARTS_API_OVERFLOW;
     }
+    if (idat->pixel_size == 0
+    ||  idat->line_width >= ULONG_MAX/idat->pixel_size)
+    {
+      return PNGPARTS_API_TOO_WIDE;
+    }
     line_length = idat->line_width*idat->pixel_size;
     buffer_length = (line_length + 7) >> 3;
   }
@@ -435,7 +459,7 @@ int pngparts_pngwrite_start_line
     unsigned char* new_buffer;
     free(idat->inbuf);
     idat->inbuf = NULL;
-    new_buffer = (unsigned char*)calloc(buffer_length, sizeof(unsigned char));
+    new_buffer = (unsigned char*)pngparts_pngwrite_calloc(buffer_length);
     if (new_buffer == NULL) {
       return PNGPARTS_API_MEMORY;
     }
@@ -725,11 +749,17 @@ int pngparts_pngwrite_generate_chunk
   &&  (idat->outlen < idat->outsize))
   {
     int const churn_mode = PNGPARTS_API_Z_FINISH;
-    (*idat->z.churn_cb)(idat->z.cb_data, churn_mode);
-    idat->outlen = (*idat->z.output_left_cb)(idat->z.cb_data);
-    if (idat->outlen == 0){
-      /* stream is really done */
-      idat->filter_mode = 6;
+    int const churn_result =
+      (*idat->z.churn_cb)(idat->z.cb_data, churn_mode);
+    if (churn_result < PNGPARTS_API_OK){
+      /* propagate the error constant */
+      total_result = churn_result;
+    } else {
+      idat->outlen = (*idat->z.output_left_cb)(idat->z.cb_data);
+      if (idat->outlen == 0){
+        /* stream is really done */
+        idat->filter_mode = 6;
+      }
     }
   }
   idat->outpos = 0;

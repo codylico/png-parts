@@ -42,6 +42,8 @@ enum pngparts_api_flag {
  * Errors
  */
 enum pngparts_api_error {
+  /* the image is too wide to process */
+  PNGPARTS_API_TOO_WIDE = -27,
   /* chunk callback did not set a valid output byte */
   PNGPARTS_API_MISSING_PUT = -26,
   /* state machine caught in a loop */
