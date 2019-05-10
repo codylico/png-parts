@@ -94,7 +94,7 @@ void test_image_put_alphapgm(struct test_image* img) {
 int main(int argc, char**argv) {
   FILE *to_write = NULL;
   char const* in_fname = NULL, *out_fname = NULL;
-  char const* plte_fname = NULL, *alpha_fname = NULL;
+  char const* alpha_fname = NULL;
   int help_tf = 0;
   int result = 0;
   struct test_image img = { 0,0,NULL,NULL,NULL };
@@ -103,11 +103,6 @@ int main(int argc, char**argv) {
     for (argi = 1; argi < argc; ++argi) {
       if (strcmp(argv[argi], "-?") == 0) {
         help_tf = 1;
-      } else if (strcmp("-p",argv[argi]) == 0){
-        if (argi+1 < argc){
-          argi += 1;
-          plte_fname = argv[argi];
-        }
       } else if (strcmp("-a",argv[argi]) == 0){
         if (argi+1 < argc){
           argi += 1;
