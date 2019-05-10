@@ -29,3 +29,17 @@ target_link_libraries(test_hash pngparts)
 
 add_executable(test_flate "test-flate.c")
 target_link_libraries(test_flate pngparts)
+
+if (PNGPARTS_INCLUDE_AUX)
+add_executable(test_aux_pngread "test-aux-pngread.c")
+target_link_libraries(test_aux_pngread pngparts)
+
+add_executable(test_aux_pngwrite "test-aux-pngwrite.c")
+target_link_libraries(test_aux_pngwrite pngparts)
+
+add_executable(test_aux8_pngread "test-aux8-pngread.c")
+target_link_libraries(test_aux8_pngread pngparts)
+
+add_executable(test_aux8_pngwrite "test-aux8-pngwrite.c")
+target_link_libraries(test_aux8_pngwrite pngparts)
+endif (PNGPARTS_INCLUDE_AUX)

@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.0)
 project(pngparts)
 
 option(BUILD_SHARED_LIBS "Build shared libraries")
+option(PNGPARTS_INCLUDE_AUX "Compile the auxiliary modules")
 set(PNGPARTS_PNGWRITE_CHUNK_SIZE CACHE STRING
   "Default IDAT chunk size (default: 7000)")
 
@@ -18,6 +19,9 @@ set(pngparts_src
   deflate.c deflate.h
   pngwrite.c pngwrite.h
   )
+if (PNGPARTS_INCLUDE_AUX)
+  list(APPEND pngparts_src aux.c aux.h)
+endif (PNGPARTS_INCLUDE_AUX)
 
 add_library(pngparts ${pngparts_src})
 if (BUILD_SHARED_LIBS)
