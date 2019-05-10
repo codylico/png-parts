@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
 
-project(pngparts)
+project(pngparts C)
 
 option(BUILD_SHARED_LIBS "Build shared libraries")
 option(PNGPARTS_INCLUDE_AUX "Compile the auxiliary modules")
