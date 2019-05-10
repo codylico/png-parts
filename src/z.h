@@ -87,13 +87,6 @@ struct pngparts_z {
 };
 
 /*
- * Error message.
- * - result error value
- * @return corresponding error message
- */
-PNGPARTS_API
-char const* pngparts_z_strerror(int result);
-/*
  * Compute a header check value.
  * - hdr the header to check
  * @return the new check value. If this value is not equal to the current
