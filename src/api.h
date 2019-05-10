@@ -1,7 +1,7 @@
 /*
  * PNG-parts
  * parts of a Portable Network Graphics implementation
- * Copyright 2018 Cody Licorish
+ * Copyright 2018-2019 Cody Licorish
  *
  * Licensed under the MIT License.
  *
@@ -42,6 +42,28 @@ enum pngparts_api_flag {
  * Errors
  */
 enum pngparts_api_error {
+  /* the image is too wide to process */
+  PNGPARTS_API_TOO_WIDE = -27,
+  /* chunk callback did not set a valid output byte */
+  PNGPARTS_API_MISSING_PUT = -26,
+  /* state machine caught in a loop */
+  PNGPARTS_API_LOOPED_STATE = -25,
+  /* chunk size too long */
+  PNGPARTS_API_CHUNK_TOO_LONG = -24,
+  /* too few IDAT chunk data for pixels */
+  PNGPARTS_API_SHORT_IDAT = -23,
+  /* weird filter value encountered */
+  PNGPARTS_API_WEIRD_FILTER = -22,
+  /* critical chunk not handled by any callbacks */
+  PNGPARTS_API_UNCAUGHT_CRITICAL = -21,
+  /* IHDR damaged or invalid */
+  PNGPARTS_API_BAD_HDR = -20,
+  /* IHDR missing from start of stream */
+  PNGPARTS_API_MISSING_HDR = -19,
+  /* CRC mismatch */
+  PNGPARTS_API_BAD_CRC = -18,
+  /* signature mismatch */
+  PNGPARTS_API_BAD_SIGNATURE = -17,
   /* dictionary given was wrong */
   PNGPARTS_API_WRONG_DICT = -16,
   /* bad code length */
@@ -79,7 +101,9 @@ enum pngparts_api_error {
   /* output buffer overflow */
   PNGPARTS_API_OVERFLOW = 1,
   /* the stream is done; quit pushing data */
-  PNGPARTS_API_DONE = 2
+  PNGPARTS_API_DONE = 2,
+  /* the callback is not yet ready */
+  PNGPARTS_API_NOT_READY = 3
 };
 /*
  * Expectation mode for zlib stream processing.
@@ -133,9 +157,12 @@ typedef int (*pngparts_api_flate_one_cb)
 /*
  * Finish callback.
  * - cb_data flate callback data
+ * - put_data data to pass to put callback
+ * - put_cb callback for putting output bytes
  * @return zero, or EOF if the callback expected more data
  */
-typedef int (*pngparts_api_flate_finish_cb)(void* cb_data);
+typedef int (*pngparts_api_flate_finish_cb)
+  (void* cb_data, void* put_data, pngparts_api_flate_put_cb put_cb);
 /*
  * Interface for DEFLATE algorithms
  */
@@ -231,6 +258,82 @@ struct pngparts_api_z {
  */
 struct pngparts_api_z pngparts_api_z_empty(void);
 
+
+
+
+/*
+ * Callback for starting image processing.
+ * - img callback data
+ * - width image width
+ * - height image height
+ * - bit_depth sample depth
+ * - color_type PNG color bit field
+ * - compression method of compression (should be zero)
+ * - filter filter method (should be zero)
+ * - interlace interlace method (should be zero or one)
+ * @return OK if the header good for the image, UNSUPPORTED
+ *   otherwise
+ */
+typedef int (*pngparts_api_image_start_cb)
+  ( void* img, long int width, long int height, short bit_depth,
+    short color_type, short compression, short filter, short interlace);
+/*
+ * Put a color to the image.
+ * - img image
+ * - x x-coordinate
+ * - y y-coordinate
+ * - red red sample
+ * - green green sample
+ * - blue blue sample
+ * - alpha alpha sample
+ */
+typedef void (*pngparts_api_image_put_cb)
+  ( void* img, long int x, long int y,
+    unsigned int red, unsigned int green, unsigned int blue,
+    unsigned int alpha);
+
+/*
+ * Callback for describing the image to process.
+ * - img callback data
+ * - width output for image width
+ * - height output for image height
+ * - bit_depth output for sample depth
+ * - color_type output for PNG color bit field
+ * - compression output for method of compression (should be zero)
+ * - filter output for filter method (should be zero)
+ * - interlace output for interlace method (should be zero or one)
+ */
+typedef void (*pngparts_api_image_describe_cb)
+  ( void* img, long int *width, long int *height, short *bit_depth,
+    short *color_type, short *compression, short *filter, short *interlace);
+
+/*
+ * Get a color from the image.
+ * - img image
+ * - x x-coordinate
+ * - y y-coordinate
+ * - red output for red sample
+ * - green output for green sample
+ * - blue output for blue sample
+ * - alpha output for alpha sample
+ */
+typedef void (*pngparts_api_image_get_cb)
+  ( void* img, long int x, long int y,
+    unsigned int *red, unsigned int *green, unsigned int *blue,
+    unsigned int *alpha);
+
+struct pngparts_api_image {
+  /* callback data */
+  void* cb_data;
+  /* image start callback (read only)*/
+  pngparts_api_image_start_cb start_cb;
+  /* image color posting callback (read only)*/
+  pngparts_api_image_put_cb put_cb;
+  /* image describe callback (write only)*/
+  pngparts_api_image_describe_cb describe_cb;
+  /* image color fetch callback (write only)*/
+  pngparts_api_image_get_cb get_cb;
+};
 
 /*
  * API information as an integer

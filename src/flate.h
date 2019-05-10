@@ -1,7 +1,7 @@
 /*
  * PNG-parts
  * parts of a Portable Network Graphics implementation
- * Copyright 2018 Cody Licorish
+ * Copyright 2018-2019 Cody Licorish
  *
  * Licensed under the MIT License.
  *
@@ -16,6 +16,32 @@
 #ifdef __cplusplus
 extern "C" {
 #endif /*__cplusplus*/
+
+/*
+ * Compression block types.
+ */
+enum pngparts_flate_block_type {
+  /* put bytes as is */
+  PNGPARTS_FLATE_PLAIN = 0,
+  /* use text-optimized Huffman code table */
+  PNGPARTS_FLATE_FIXED = 1,
+  /* use dynamic Huffman code table */
+  PNGPARTS_FLATE_DYNAMIC = 2
+};
+
+/*
+ * Compression block levels.
+ */
+enum pngparts_flate_block_level {
+  /* put bytes as is */
+  PNGPARTS_FLATE_OFF = 0,
+  /* low compression */
+  PNGPARTS_FLATE_LOW = 1,
+  /* medium compression */
+  PNGPARTS_FLATE_MEDIUM = 2,
+  /* high compression */
+  PNGPARTS_FLATE_HIGH = 3
+};
 
 /*
  * Length conversion structure.
@@ -52,6 +78,26 @@ struct pngparts_flate_huff {
 };
 
 /*
+ * Past hash table
+ */
+struct pngparts_flate_hash {
+  /* next indices */
+  unsigned short *next;
+  /* first indices */
+  unsigned short *first;
+  /* size of next indices */
+  unsigned short next_size;
+  /* current table write position */
+  unsigned short pos;
+  /* last few bytes */
+  unsigned char bytes[2];
+  /* minimal bytes processed so far */
+  unsigned char byte_size;
+  /* maximum index of first array */
+  unsigned char first_max;
+};
+
+/*
  * base for flater
  */
 struct pngparts_flate {
@@ -65,6 +111,19 @@ struct pngparts_flate {
   unsigned char bitlength;
   /* history of previous bits */
   unsigned int bitline;
+  /* amount of inscription committed so far */
+  unsigned short inscription_commit;
+  /* position in current inscription */
+  unsigned short inscription_pos;
+  /* size of inscription in short integers */
+  unsigned short inscription_size;
+  /*
+   * run-time parameter:
+   * number of bytes after which to throw away a second match
+   */
+  unsigned short match_truncate;
+  /* text to write */
+  unsigned short* inscription_text;
   /* past bytes read */
   unsigned char* history_bytes;
   /* size of history in bytes */
@@ -75,6 +134,8 @@ struct pngparts_flate {
   unsigned char shortbuf[4];
   /* short buffer position */
   unsigned short short_pos;
+  /* inscription alphabet */
+  unsigned short* alphabet;
   /* direct block length */
   unsigned int block_length;
   /* repeat length */
@@ -87,6 +148,16 @@ struct pngparts_flate {
   struct pngparts_flate_huff length_table;
   /* distance code table */
   struct pngparts_flate_huff distance_table;
+  /* compression type */
+  unsigned char block_type;
+  /* compression level */
+  unsigned char block_level;
+  /* next output byte */
+  unsigned char next_output_byte;
+  /* next inscription alternative */
+  unsigned short alt_inscription[5];
+  /* hash table for compression pairs */
+  struct pngparts_flate_hash pointer_hash;
 };
 
 
@@ -259,6 +330,83 @@ struct pngparts_flate_extra pngparts_flate_length_decode(int literal);
  */
 PNGPARTS_API
 struct pngparts_flate_extra pngparts_flate_distance_decode(int dcode);
+
+/*
+ * Literal from length conversion function.
+ * - length stream length in bytes
+ * @return a structure holding the minimum repeat length for
+ *   the given length code, along with the number of extra bits
+ *   needed for encoding the number, or a structure with negative
+ *   repeat length on error
+ */
+PNGPARTS_API
+struct pngparts_flate_extra pngparts_flate_length_encode(int length);
+
+/*
+ * Distance code from distance conversion function.
+ * - dcode stream distance in bytes
+ * @return a structure holding the minimum repeat distance for
+ *   the given distance code, along with the number of extra bits
+ *   needed for encoding the number, or a structure with negative
+ *   repeat distance on error
+ */
+PNGPARTS_API
+struct pngparts_flate_extra pngparts_flate_distance_encode
+  (unsigned int distance);
+
+/*
+ * Initialize an empty hash table.
+ * - hash the table to initialize
+ */
+PNGPARTS_API
+void pngparts_flate_hash_init(struct pngparts_flate_hash *hash);
+
+/*
+ * Empty the hash table.
+ * - hash the table to empty
+ */
+PNGPARTS_API
+void pngparts_flate_hash_free(struct pngparts_flate_hash *hash);
+
+/*
+ * Empty the hash table.
+ * - hash the table to configure
+ * - size new history size
+ * @return zero on success, MEMORY otherwise
+ */
+PNGPARTS_API
+int pngparts_flate_hash_prepare
+  (struct pngparts_flate_hash *hash, unsigned int size);
+
+/*
+ * Add to hash table.
+ * - hash table structure to update
+ * - ch byte to add (0 - 255)
+ */
+PNGPARTS_API
+void pngparts_flate_hash_add(struct pngparts_flate_hash *hash, int ch);
+
+/*
+ * Add to hash triple collation, but skip insertion into the hash table.
+ * - hash table structure to update
+ * - ch byte to add (0 - 255)
+ */
+PNGPARTS_API
+void pngparts_flate_hash_skip(struct pngparts_flate_hash *hash, int ch);
+
+/*
+ * Check the hash table.
+ * - hash table structure to query
+ * - history_bytes bytes of history from a corresponding flate structure
+ * - chs 3-byte sequence for which to search
+ * - start point in history from which to start searching, or zero
+ *     to start from most recent history
+ * @return a distance in history if found, or zero if not found
+ */
+PNGPARTS_API
+unsigned int pngparts_flate_hash_check
+  ( struct pngparts_flate_hash *hash, unsigned char const* history_bytes,
+    unsigned char const* chs, unsigned int start);
 
 #ifdef __cplusplus
 };

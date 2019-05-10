@@ -547,8 +547,11 @@ int pngparts_inflate_one
             else if (last_block) {
               state = 4;
               pos = PNGPARTS_API_DONE;
-            } else
+            } else {
               state = 0;
+              fl->bitline = 0;
+              fl->bitlength = 0;
+            }
           }
         }
       }break;
@@ -564,8 +567,11 @@ int pngparts_inflate_one
           if (last_block) {
             state = 4;
             pos = PNGPARTS_API_DONE;
-          } else
+          } else {
             state = 0;
+            fl->bitline = 0;
+            fl->bitlength = 0;
+          }
         }
       }break;
     }
@@ -589,8 +595,12 @@ int pngparts_inflate_one
   }
   return pos;
 }
-int pngparts_inflate_finish(void* data){
+int pngparts_inflate_finish
+  (void* data, void* put_data, int(*put_cb)(void*,int))
+{
   struct pngparts_flate *fl = (struct pngparts_flate *)data;
+  (void)put_data;
+  (void)put_cb;
   if ((fl->state & PNGPARTS_INFLATE_STATE) != 4)
     return PNGPARTS_API_EOF;
   else

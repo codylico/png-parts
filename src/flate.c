@@ -133,6 +133,13 @@ struct pngparts_flate_code const pngparts_flate_fixed_l_table[288] = {
 
 static int pngparts_flate_code_valuecmp(void const* va, void const* vb);
 
+/*
+ * Fill bits after the most-significant set bit.
+ * - x input integer
+ * @return x with its bits filled
+ */
+static unsigned int pngparts_flate_hash_postfill(unsigned int x);
+
 struct pngparts_flate_code pngparts_flate_code_by_literal(int value){
   struct pngparts_flate_code cd;
   cd.length = 0;
@@ -254,7 +261,7 @@ void pngparts_flate_huff_make_lengths
           min_level = hist[i];
       }
     }
-    average /= count;
+    if (count > 0) average /= count;
   } else return;
   /* compute code lengths needed */{
     code_limits[0] = (int)(average-((average-min_level)>>1));
@@ -457,6 +464,56 @@ struct pngparts_flate_extra pngparts_flate_distance_decode(int dcode){
   return out;
 }
 
+struct pngparts_flate_extra pngparts_flate_length_encode(int length){
+  struct pngparts_flate_extra const out =
+    {PNGPARTS_API_NOT_FOUND,length,PNGPARTS_API_NOT_FOUND};
+  if (length >= 3 && length <= 258){
+    /* sorted */{
+      int start = 0;
+      int stop = 29;
+      /* binary search */
+      while (start < (stop-1)){
+        int mid = ((stop-start)>>1)+start;
+        int const midlength = pngparts_flate_length_table[mid].length_value;
+        if (midlength == length)
+          return pngparts_flate_length_table[mid];
+        else if (midlength > length)
+          stop = mid;
+        else /*if (midlength < length)*/
+          start = mid;
+      }
+      return pngparts_flate_length_table[start];
+    }
+  } else return out;
+}
+
+struct pngparts_flate_extra pngparts_flate_distance_encode
+  (unsigned int distance)
+{
+  struct pngparts_flate_extra const out =
+    {PNGPARTS_API_NOT_FOUND,distance,PNGPARTS_API_NOT_FOUND};
+  if (distance >= 1u && distance <= 32768u){
+    /* sorted */{
+      int start = 0;
+      int stop = 30;
+      /* binary search */
+      while (start < (stop-1)){
+        int mid = ((stop-start)>>1)+start;
+        unsigned int const middistance =
+          (unsigned int)pngparts_flate_distance_table[mid].length_value;
+        if (middistance == distance)
+          return pngparts_flate_distance_table[mid];
+        else if (middistance > distance)
+          stop = mid;
+        else /*if (middistance < distance)*/
+          start = mid;
+      }
+      return pngparts_flate_distance_table[start];
+    }
+  } else return out;
+}
+
+
 void pngparts_flate_history_add(struct pngparts_flate *fl, int ch){
   fl->history_bytes[fl->history_pos] = (unsigned char)(ch&255);
   fl->history_pos += 1;
@@ -472,4 +529,228 @@ int pngparts_flate_history_get(struct pngparts_flate *fl, int dist){
     repos = fl->history_pos-dist;
   if (repos >= fl->history_size) return 0;
   return fl->history_bytes[repos]&255;
+}
+
+void pngparts_flate_hash_init(struct pngparts_flate_hash *hash){
+  hash->first = NULL;
+  hash->next = NULL;
+  hash->next_size = 0;
+  hash->byte_size = 0;
+  hash->first_max = 0;
+  return;
+}
+
+void pngparts_flate_hash_free(struct pngparts_flate_hash *hash){
+  free(hash->first);
+  free(hash->next);
+  hash->first = NULL;
+  hash->next = NULL;
+  hash->next_size = 0;
+  hash->byte_size = 0;
+  hash->first_max = 0;
+  return;
+}
+
+unsigned int pngparts_flate_hash_postfill(unsigned int x){
+  if (x == 0u)
+    return 1u;
+  else {
+    unsigned int last_bit_point = 0;
+    unsigned int bit_point;
+    unsigned int out;
+    /* detect the last bit point */{
+      unsigned int fill_point = 1u;
+      for (bit_point = 0; bit_point < 64; ++bit_point){
+        if (fill_point == 0)
+          break;
+        if (x&fill_point){
+          last_bit_point = bit_point;
+        }
+        fill_point <<= 1;
+      }
+    }
+    /* correct upto the last bit point */{
+      out = (1u<<(last_bit_point+1))-1;
+    }
+    return out;
+  }
+}
+
+int pngparts_flate_hash_prepare
+  (struct pngparts_flate_hash *hash, unsigned int size)
+{
+  if (size > 32768u){
+    /* say no by */return/*ing */ PNGPARTS_API_MEMORY;
+  } else {
+    unsigned int const first_size =
+      pngparts_flate_hash_postfill((size>>7)-1u)+1u;
+    unsigned short* new_first = (unsigned short*)malloc
+      (sizeof(unsigned short)*first_size);
+    unsigned short* new_next = (unsigned short*)malloc
+      (sizeof(unsigned short)*size);
+    if (new_first == NULL || new_next == NULL){
+      free(new_first);
+      free(new_next);
+      return PNGPARTS_API_MEMORY;
+    }
+    /* fill the first and next structures */{
+      unsigned int i;
+      for (i = 0; i < size; ++i){
+        new_next[i] = USHRT_MAX;
+      }
+      for (i = 0; i < first_size; ++i){
+        new_first[i] = USHRT_MAX;
+      }
+    }
+    /* configure the structure */
+    free(hash->first);
+    free(hash->next);
+    hash->first = new_first;
+    hash->next = new_next;
+    hash->next_size = (unsigned short)size;
+    hash->pos = 0;
+    hash->bytes[0] = 0;
+    hash->bytes[1] = 0;
+    hash->byte_size = 0;
+    hash->first_max = (unsigned char)(first_size-1);
+    return PNGPARTS_API_OK;
+  }
+}
+
+void pngparts_flate_hash_add(struct pngparts_flate_hash *hash, int ch){
+  switch (hash->byte_size){
+  case 0:
+    hash->bytes[0] = (unsigned char)(ch&255);
+    hash->byte_size = 1;
+    break;
+  case 1:
+    hash->bytes[1] = (unsigned char)(ch&255);
+    hash->byte_size = 2;
+    break;
+  default:
+    {
+      unsigned char const ch_value = (unsigned char)(ch&255);
+      unsigned char const hash_key =
+        (hash->bytes[0]^hash->bytes[1]^ch_value)&(hash->first_max);
+      /* add current hash value to the table */{
+        hash->next[hash->pos] = hash->first[hash_key];
+        hash->first[hash_key] = hash->pos;
+        hash->pos = (hash->pos+1)%(hash->next_size);
+      }
+      /* shift the working space */{
+        hash->bytes[0] = hash->bytes[1];
+        hash->bytes[1] = ch_value;
+      }
+    }break;
+  }
+  return;
+}
+
+void pngparts_flate_hash_skip(struct pngparts_flate_hash *hash, int ch){
+  switch (hash->byte_size){
+  case 0:
+    hash->bytes[0] = (unsigned char)(ch&255);
+    hash->byte_size = 1;
+    break;
+  case 1:
+    hash->bytes[1] = (unsigned char)(ch&255);
+    hash->byte_size = 2;
+    break;
+  default:
+    {
+      unsigned char const ch_value = (unsigned char)(ch&255);
+      /* advance table write pointer */{
+        hash->pos = (hash->pos+1)%(hash->next_size);
+      }
+      /* shift the working space */{
+        hash->bytes[0] = hash->bytes[1];
+        hash->bytes[1] = ch_value;
+      }
+    }break;
+  }
+  return;
+}
+
+unsigned int pngparts_flate_hash_check
+  ( struct pngparts_flate_hash *hash, unsigned char const* history_bytes,
+    unsigned char const* chs, unsigned int start)
+{
+  unsigned int history_out = 0;
+  unsigned int const adjusted_pos = hash->pos + 2;
+  /* hash it */
+  unsigned char const hash_key = (chs[0]^chs[1]^chs[2])&(hash->first_max);
+  /* inspect the hash */{
+    unsigned int trouble_count = 0;
+    unsigned int point_tracking;
+    unsigned short *prev_point;
+    unsigned int const hash_size = hash->next_size;
+    if (start == 0){
+      /* use the first pointer as the previous pointer */
+      prev_point = hash->first+hash_key;
+      point_tracking = adjusted_pos;
+    } else {
+      /* compute the location of the previous pointer */
+      unsigned int history_in = start;
+      if (history_in > adjusted_pos){
+        history_in -= hash->next_size;
+      }
+      history_in = (adjusted_pos) - history_in;
+      prev_point = hash->next + history_in;
+      point_tracking = history_in;
+    }
+    /* traverse the list */
+    for (trouble_count = 0; trouble_count < hash_size; ++trouble_count){
+      unsigned int current_point;
+      unsigned int cp1, cp2;
+      /* fetch the current value from the previous point */
+      current_point = *prev_point;
+      if (current_point == USHRT_MAX)
+        break;
+      /* check for write boundary crossing */{
+        if (current_point <= adjusted_pos
+        &&  point_tracking > adjusted_pos)
+        {
+          *prev_point = USHRT_MAX;
+          break;
+        } else if (current_point <= adjusted_pos
+        &&  point_tracking <= current_point)
+        {
+          *prev_point = USHRT_MAX;
+          break;
+        } else point_tracking = current_point;
+      }
+      cp1 = (current_point+1)%(hash->next_size);
+      cp2 = (current_point+2)%(hash->next_size);
+      /* inspect the history */
+      if (history_bytes[current_point] == chs[0]
+      &&  history_bytes[cp1] == chs[1]
+      &&  history_bytes[cp2] == chs[2])
+      {
+        /* compute the historical position */
+        history_out = adjusted_pos - current_point;
+        if (history_out >= hash->next_size)
+          history_out += hash->next_size;
+        break;
+      } else /* otherwise retrogress through history */{
+        /* check the hash key */
+        unsigned char const past_hash_key =
+          (history_bytes[current_point]^history_bytes[cp1]^history_bytes[cp2])
+          & (hash->first_max);
+        if (past_hash_key != hash_key){
+          /* cut the linked list here */
+          *prev_point = USHRT_MAX;
+          break;
+        } else {
+          /* transition to the next point */
+          prev_point = hash->next+current_point;
+          continue;
+        }
+      }
+    }/* end for trouble_count */
+  }
+  /* clamp at history size */if (history_out > hash->next_size){
+    return 0;
+  }
+  /* done */
+  return history_out;
 }
