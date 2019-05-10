@@ -7,7 +7,7 @@ should be more or less usable independently of each other.
 
 ## Goals
 
-Right now, this repository is empty. The goals of this project include:
+The repository currently contains source code in C for the following:
 
 * DEFLATE compression implementation (both read and write)
   according to [RFC 1951](https://www.ietf.org/rfc/rfc1951.txt)
@@ -17,6 +17,10 @@ Right now, this repository is empty. The goals of this project include:
 
 * PNG image format basic implementation (both read and write)
   according to [RFC 2083](https://www.ietf.org/rfc/rfc2083.txt)
+
+Future goals of this project include:
+
+* A C++ port of this library
 
 * support for the tRNS chunk for transparency (both read and write)
 
@@ -49,5 +53,4 @@ within the IDE.
 
 ## License
 
-The source code within this project will be licensed under the
-MIT license.
+The source code within this project is provided under the MIT license.

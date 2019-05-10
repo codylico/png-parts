@@ -26,9 +26,6 @@ struct test_image {
 static int test_image_header
   ( void* img, long int width, long int height, short bit_depth,
     short color_type, short compression, short filter, short interlace);
-static void test_image_recv_pixel
-  ( void* img, long int x, long int y, unsigned int red,
-    unsigned int green, unsigned int blue, unsigned int alpha);
 
 int test_image_header
   ( void* img_ptr, long int width, long int height, short bit_depth,
@@ -53,19 +50,6 @@ int test_image_header
   img->bytes = (unsigned char*)bytes;
   memset(bytes, 55, width*height * 4);
   return PNGPARTS_API_OK;
-}
-void test_image_recv_pixel
-  ( void* img_ptr, long int x, long int y, unsigned int red,
-    unsigned int green, unsigned int blue, unsigned int alpha)
-{
-  struct test_image *img = (struct test_image*)img_ptr;
-  unsigned char *const pixel = (&img->bytes[(y*img->width + x)*4]);
-  /*fprintf(stderr, "pixel for %li %li..\n", x, y);*/
-  pixel[0] = red / 257;
-  pixel[1] = green / 257;
-  pixel[2] = blue / 257;
-  pixel[3] = alpha / 257;
-  return;
 }
 void test_image_put_ppm(struct test_image* img) {
   int x, y;

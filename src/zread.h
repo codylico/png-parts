@@ -17,7 +17,6 @@
 extern "C" {
 #endif /*__cplusplus*/
 
-struct pngparts_zread;
 
 
 /*

@@ -148,7 +148,7 @@ int pngparts_pngwrite_generate(struct pngparts_png* w){
        * 6  - unknown chunk CRC
        * 7  - IHDR handling
        */
-    int ch;
+    int ch = -256;
     switch (state){
     case 0: /* start */
       if (shortpos < 8){
@@ -388,7 +388,11 @@ int pngparts_pngwrite_generate(struct pngparts_png* w){
     }
     if (result != PNGPARTS_API_OK)
       break;
-    else /* put actual character */ {
+    else if (ch == -256){
+      /* character did not get set, so break */
+      result = PNGPARTS_API_BAD_STATE;
+      break;
+    } else /* put actual character */ {
       w->buf[w->pos] = (unsigned char)(ch & 255);
       w->pos += 1;
     }

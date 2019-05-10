@@ -185,6 +185,7 @@ struct pngparts_api_flate {
 struct pngparts_api_flate pngparts_api_flate_empty(void);
 
 
+
 /*
  * Setup an input buffer for next use.
  * - zs zlib stream struct (struct pngparts_z)
@@ -193,6 +194,7 @@ struct pngparts_api_flate pngparts_api_flate_empty(void);
  */
 typedef void (*pngparts_api_z_set_input_cb)
   (void *zs, void* inbuf, int insize);
+
 /*
  * Setup an output buffer for next use.
  * - zs zlib stream struct (struct pngparts_z)
@@ -201,18 +203,21 @@ typedef void (*pngparts_api_z_set_input_cb)
  */
 typedef void (*pngparts_api_z_set_output_cb)
   (void *zs, void* outbuf, int outsize);
+
 /*
  * Check if the reader has used up all the latest input.
  * - zs zlib stream struct (struct pngparts_z)
  * @return nonzero if the input is used up
  */
 typedef int (*pngparts_api_z_input_done_cb)(void const* zs);
+
 /*
  * Check how much output bytes wait for you.
  * - zs zlib stream struct (struct pngparts_z)
  * @return byte count for the output bytes
  */
 typedef int (*pngparts_api_z_output_left_cb)(void const* zs);
+
 /*
  * Process a part of a stream.
  * - zs zlib stream struct (struct pngparts_z)
@@ -221,6 +226,7 @@ typedef int (*pngparts_api_z_output_left_cb)(void const* zs);
  *   on unexpected end of stream
  */
 typedef int (*pngparts_api_z_churn_cb)(void* zs, int mode);
+
 /*
  * Try to set the dictionary for use.
  * - zs zlib stream struct
@@ -233,8 +239,9 @@ typedef int (*pngparts_api_z_churn_cb)(void* zs, int mode);
  */
 typedef int (*pngparts_api_z_set_dict_cb)
   (void* zs, unsigned char const* ptr, int len);
+
 /*
- * Interface for DEFLATE algorithms
+ * Interface for zlib stream algorithms
  */
 struct pngparts_api_z {
   /* callback data */
@@ -252,8 +259,9 @@ struct pngparts_api_z {
   /* processing callback */
   pngparts_api_z_churn_cb churn_cb;
 };
+
 /*
- * Create an empty DEFLATE callback interface.
+ * Create an empty zlib stream callback interface.
  * @return an empty interface structure
  */
 struct pngparts_api_z pngparts_api_z_empty(void);

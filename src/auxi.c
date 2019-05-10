@@ -298,7 +298,6 @@ void pngparts_aux_image_put_to8
     unsigned int red, unsigned int green, unsigned int blue,
     unsigned int alpha)
 {
-  unsigned int xred, xgreen, xblue, xalpha;
   struct pngparts_api_image* ximg = (struct pngparts_api_image*)img;
   (*ximg->put_cb)(ximg->cb_data, x,y, red/257, green/257, blue/257, alpha/257);
   return;
@@ -367,6 +366,7 @@ unsigned int pngparts_aux_block_form(unsigned int f){
   case 4: return 2;
   case 2: return 3;
   case 0: return 1;
+  default: return 1;
   }
 }
 
