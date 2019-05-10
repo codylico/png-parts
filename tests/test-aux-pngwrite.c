@@ -26,12 +26,6 @@ struct test_image {
   char bit_depth;
   FILE* alpha_fptr;
 };
-static void test_image_describe
-  ( void* img, long int *width, long int *height, short *bit_depth,
-    short *color_type, short *compression, short *filter, short *interlace);
-static void test_image_send_pixel
-  ( void* img, long int x, long int y, unsigned int *red,
-    unsigned int *green, unsigned int *blue, unsigned int *alpha);
 static int test_image_resize
   ( void* img_ptr, long int width, long int height);
 static int test_image_get_text_word
@@ -40,29 +34,6 @@ static int test_file_get_text_word(FILE* img, char* buf, int count);
 static int test_image_get_ppm(struct test_image* img);
 static int test_image_get_alphapgm(struct test_image* img);
 
-void test_image_describe
-  ( void* img_ptr, long int *width, long int *height, short *bit_depth,
-    short *color_type, short *compression, short *filter, short *interlace)
-{
-  struct test_image *img = (struct test_image*)img_ptr;
-  *width = img->width;
-  *height = img->height;
-  *bit_depth = img->bit_depth;
-  *color_type = img->color_type;
-  *compression = 0;
-  *filter = 0;
-  *interlace = img->interlace_tf?1:0;
-  fprintf(stderr, "{\"image info\":{\n"
-    "  \"width\": %li,\n"
-    "  \"height\": %li,\n"
-    "  \"bit depth\": %i,\n"
-    "  \"color type\": %i,\n"
-    "  \"compression\": %i,\n"
-    "  \"filter\": %i,\n"
-    "  \"interlace\": %i\n}}\n",
-    *width, *height, *bit_depth, *color_type, *compression, *filter, *interlace
-  );
-}
 
 int test_image_resize
   (void* img_ptr, long int width, long int height)
@@ -78,19 +49,6 @@ int test_image_resize
   return PNGPARTS_API_OK;
 }
 
-void test_image_send_pixel
-  ( void* img_ptr, long int x, long int y, unsigned int *red,
-    unsigned int *green, unsigned int *blue, unsigned int *alpha)
-{
-  struct test_image *img = (struct test_image*)img_ptr;
-  unsigned char *const pixel = (&img->bytes[(y*img->width + x)*4]);
-  /*fprintf(stderr, "pixel for %li %li..\n", x, y);*/
-  *red = pixel[0]*257;
-  *green = pixel[1]*257;
-  *blue = pixel[2]*257;
-  *alpha = pixel[3]*257;
-  return;
-}
 
 int test_image_get_text_word(struct test_image* img, char* buf, int count){
   return test_file_get_text_word(img->fptr, buf, count);
