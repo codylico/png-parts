@@ -367,6 +367,7 @@ unsigned int pngparts_aux_block_form(unsigned int f){
   case 4: return 2;
   case 2: return 3;
   case 0: return 1;
+  default: return 1;
   }
 }
 
