@@ -179,7 +179,7 @@ int main(int argc, char**argv) {
       return 1;
     }
   }
-  /* parse the zlib stream */
+  /* parse the PNG stream */
   pngparts_pngread_init(&parser);
   /* set image callback */{
     struct pngparts_api_image img_api;

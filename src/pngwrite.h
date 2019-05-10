@@ -27,7 +27,8 @@ void pngparts_pngwrite_init(struct pngparts_png* w);
 
 /*
  * Free out a writer for PNG.
- * - w the writer to free
+ * - w the writer to free; any registered chunks receive the
+ *     DESTROY message at this point
  */
 PNGPARTS_API
 void pngparts_pngwrite_free(struct pngparts_png* w);
