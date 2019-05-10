@@ -5,13 +5,12 @@
  *
  * Licensed under the MIT License.
  *
- * test-pngread.c
- * png reader test program
+ * test-aux-pngread.c
+ * auxiliary png reader test program
  */
 
-#include "../src/pngread.h"
-#include "../src/zread.h"
-#include "../src/inflate.h"
+#include "../src/auxi.h"
+#include "../src/png.h"
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
@@ -93,26 +92,11 @@ void test_image_put_alphapgm(struct test_image* img) {
   return;
 }
 
-void test_image_put_plte(FILE* pltefile, struct pngparts_png* plte_src){
-  int x;
-  int const plte_size = pngparts_png_get_plte_size(plte_src);
-  fprintf(pltefile, "palette4\n%i\n", plte_size);
-  for (x = 0; x < plte_size; ++x) {
-    struct pngparts_png_plte_item const pixel =
-      pngparts_png_get_plte_item(plte_src, x);
-    fprintf(pltefile, "%i %i %i %i\n",
-      pixel.red, pixel.green, pixel.blue, pixel.alpha);
-  }
-  return;
-}
 
 int main(int argc, char**argv) {
   FILE *to_read = NULL, *to_write = NULL;
   char const* in_fname = NULL, *out_fname = NULL;
-  char const* plte_fname = NULL, *alpha_fname = NULL;
-  struct pngparts_png parser;
-  struct pngparts_z zreader;
-  struct pngparts_flate inflater;
+  char const* alpha_fname = NULL;
   int help_tf = 0;
   int result = 0;
   struct test_image img = { 0,0,NULL,NULL,NULL };
@@ -121,11 +105,6 @@ int main(int argc, char**argv) {
     for (argi = 1; argi < argc; ++argi) {
       if (strcmp(argv[argi], "-?") == 0) {
         help_tf = 1;
-      } else if (strcmp("-p",argv[argi]) == 0){
-        if (argi+1 < argc){
-          argi += 1;
-          plte_fname = argv[argi];
-        }
       } else if (strcmp("-a",argv[argi]) == 0){
         if (argi+1 < argc){
           argi += 1;
@@ -143,27 +122,12 @@ int main(int argc, char**argv) {
         "  -                  stdin/stdout\n"
         "  -?                 help message\n"
         "options:\n"
-        "  -p (file)          palette output file\n"
         "  -a (file)          alpha channel output file\n"
       );
       return 2;
     }
   }
   /* open */
-  if (in_fname == NULL) {
-    fprintf(stderr, "No input file name given.\n");
-    return 2;
-  } else if (strcmp(in_fname, "-") == 0) {
-    to_read = stdin;
-  } else {
-    to_read = fopen(in_fname, "rb");
-    if (to_read == NULL) {
-      int errval = errno;
-      fprintf(stderr, "Failed to open '%s'.\n\t%s\n",
-        in_fname, strerror(errval));
-      return 1;
-    }
-  }
   if (out_fname == NULL) {
     fprintf(stderr, "No output file name given.\n");
     return 2;
@@ -179,76 +143,26 @@ int main(int argc, char**argv) {
       return 1;
     }
   }
-  /* parse the PNG stream */
-  pngparts_pngread_init(&parser);
-  /* set image callback */{
-    struct pngparts_api_image img_api;
-    img_api.cb_data = &img;
-    img_api.start_cb = &test_image_header;
-    img_api.put_cb = &test_image_recv_pixel;
-    pngparts_png_set_image_cb(&parser, &img_api);
+
+  /* read the header */{
+    struct pngparts_png_header img_header;
+    result = pngparts_aux_read_header(&img_header, in_fname);
+    if (result == PNGPARTS_API_OK){
+      result = test_image_header(
+          &img, img_header.width, img_header.height,
+          img_header.bit_depth, img_header.color_type, img_header.compression,
+          img_header.filter, img_header.interlace
+        );
+    }
+  }
+  if (result == PNGPARTS_API_OK) {
+    result = pngparts_aux_read_block(
+        img.width, img.height, 0, 0, PNGPARTS_AUX_RGBA, 8, img.bytes, in_fname
+      );
   }
   img.outfile = to_write;
-  /* set IDAT callback */ {
-    struct pngparts_api_z z_api;
-    struct pngparts_api_flate flate_api;
-    struct pngparts_png_chunk_cb idat_api;
-    pngparts_zread_init(&zreader);
-    pngparts_inflate_init(&inflater);
-    pngparts_inflate_assign_api(&flate_api, &inflater);
-    pngparts_zread_assign_api(&z_api, &zreader);
-    pngparts_z_set_cb(&zreader, &flate_api);
-    pngparts_pngread_assign_idat_api(&idat_api, &z_api);
-    pngparts_png_add_chunk_cb(&parser, &idat_api);
-  }
-  /* set PLTE callback */ {
-    struct pngparts_png_chunk_cb plte_api;
-    pngparts_pngread_assign_plte_api(&plte_api);
-    pngparts_png_add_chunk_cb(&parser, &plte_api);
-  }
-  /*pngparts_png_set_z_cb(&parser, &reader,
-    &pngparts_z_touch_input, &pngparts_z_touch_output,
-    &pngparts_z_churn);*/
-  do {
-    unsigned char inbuf[256];
-    size_t readlen;
-    while ((readlen = fread(inbuf, sizeof(unsigned char), 256, to_read)) > 0) {
-      pngparts_png_buffer_setup(&parser, inbuf, (int)readlen);
-      while (!pngparts_png_buffer_done(&parser)) {
-        result = pngparts_pngread_parse(&parser);
-        if (result < 0) break;
-      }
-      if (result < 0) break;
-    }
-    if (result < 0) break;
-  } while (0);
   /* output to PPM */ {
     test_image_put_ppm(&img);
-  }
-
-  /* output the palette */if (plte_fname != NULL){
-    FILE *pltefile;
-    if (to_write != stdout){
-      fclose(to_write);
-      to_write = stdout;
-    }
-    pltefile = fopen(plte_fname, "wt");
-    if (pltefile == NULL){
-      int errval = errno;
-      fprintf(stderr, "Failed to open '%s' for palette.\n\t%s\n",
-        plte_fname, strerror(errval));
-      pngparts_pngread_free(&parser);
-      pngparts_zread_free(&zreader);
-      pngparts_inflate_free(&inflater);
-      /* close */
-      free(img.bytes);
-      if (to_write != stdout) fclose(to_write);
-      if (to_read != stdin) fclose(to_read);
-      return 1;
-    } else {
-      test_image_put_plte(pltefile, &parser);
-      fclose(pltefile);
-    }
   }
 
   /* output the alpha channel */if (alpha_fname != NULL){
@@ -262,9 +176,6 @@ int main(int argc, char**argv) {
       int errval = errno;
       fprintf(stderr, "Failed to open '%s' for alpha channel.\n\t%s\n",
         alpha_fname, strerror(errval));
-      pngparts_pngread_free(&parser);
-      pngparts_zread_free(&zreader);
-      pngparts_inflate_free(&inflater);
       /* close */
       free(img.bytes);
       if (to_write != stdout) fclose(to_write);
@@ -277,14 +188,9 @@ int main(int argc, char**argv) {
     }
   }
 
-  /* cleanup */
-  pngparts_pngread_free(&parser);
-  pngparts_zread_free(&zreader);
-  pngparts_inflate_free(&inflater);
   /* close */
   free(img.bytes);
   if (to_write != stdout) fclose(to_write);
-  if (to_read != stdin) fclose(to_read);
   fflush(NULL);
   if (result) {
     fprintf(stderr, "\nResult code %i: %s\n",

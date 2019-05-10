@@ -26,7 +26,8 @@ PNGPARTS_API
 void pngparts_pngread_init(struct pngparts_png* p);
 /*
  * Free out a reader for PNG.
- * - p the reader to free
+ * - p the reader to free; any registered chunks receive the
+ *     DESTROY message at this point
  */
 PNGPARTS_API
 void pngparts_pngread_free(struct pngparts_png* p);
