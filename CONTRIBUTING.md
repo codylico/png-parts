@@ -58,7 +58,11 @@ include the following:
   configuration settings
 
 Post the issue to the issue tracker using the template which can be
-found at [issue_template.md](issue_template.md).
+found at
+[bug_report.md](.github/ISSUE_TEMPLATE/bug_report.md)
+for bug reports, or
+[feature_request.md](.github/ISSUE_TEMPLATE/feature_request.md)
+for feature requests.
 
 ## Pull Requests
 Contributions to this repository should follow these guidelines:
@@ -72,8 +76,8 @@ Contributions to this repository should follow these guidelines:
   commits.
 
 - Do not merge or push directly into the `master` branch. Use a pull
-  request, with a template that will be made available at
-  [pull_request_template.md](pull_request_template.md).
+  request, with the template available at
+  [PULL_REQUEST_TEMPLATE.md](PULL_REQUEST_TEMPLATE.md).
 
 - Formatting changes of code already present should be in their own
   separate commit.
