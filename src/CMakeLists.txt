@@ -20,7 +20,7 @@ set(pngparts_src
   pngwrite.c pngwrite.h
   )
 if (PNGPARTS_INCLUDE_AUX)
-  list(APPEND pngparts_src aux.c aux.h)
+  list(APPEND pngparts_src auxi.c auxi.h)
 endif (PNGPARTS_INCLUDE_AUX)
 
 add_library(pngparts ${pngparts_src})

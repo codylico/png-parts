@@ -1,5 +1,5 @@
 
-#include "aux.h"
+#include "auxi.h"
 #include "png.h"
 #include "pngwrite.h"
 #include "pngread.h"

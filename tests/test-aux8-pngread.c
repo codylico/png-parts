@@ -9,7 +9,7 @@
  * png reader test program
  */
 
-#include "../src/aux.h"
+#include "../src/auxi.h"
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>

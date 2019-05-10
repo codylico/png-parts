@@ -5,11 +5,11 @@
  *
  * Licensed under the MIT License.
  *
- * test-pngread.c
- * png reader test program
+ * test-aux-pngread.c
+ * auxiliary png reader test program
  */
 
-#include "../src/aux.h"
+#include "../src/auxi.h"
 #include "../src/png.h"
 #include <stdio.h>
 #include <errno.h>

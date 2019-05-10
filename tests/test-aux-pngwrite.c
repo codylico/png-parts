@@ -5,11 +5,11 @@
  *
  * Licensed under the MIT License.
  *
- * test-pngwrite.c
- * png writer test program
+ * test-aux-pngwrite.c
+ * auxiliary png writer test program
  */
 
-#include "../src/aux.h"
+#include "../src/auxi.h"
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
