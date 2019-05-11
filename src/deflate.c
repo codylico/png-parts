@@ -1390,6 +1390,7 @@ int pngparts_deflate_one
   unsigned int trouble_counter = 0;
   unsigned int const trouble_max = fl->inscription_size+341;
   int skip_back = 1;
+  unsigned int remix_count = 0;
   while (result == PNGPARTS_API_OK
   &&  skip_back)
   {
@@ -1403,6 +1404,11 @@ int pngparts_deflate_one
     skip_back = 0;
     switch (fl->state&PNGPARTS_DEFLATE_STATE){
     case 0: /* base */
+      remix_count += 1;
+      if (remix_count > 1){
+        /* don't do the same byte twice */
+        break;
+      }
       result = pngparts_deflate_churn_input(fl, ch);
       if (result == PNGPARTS_API_OK)
         break;
