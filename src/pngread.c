@@ -790,6 +790,11 @@ int pngparts_pngread_idat_msg
             /* done */
           }break;
         }
+        if (result == PNGPARTS_API_WEIRD_FILTER){
+          /* override good z_result */
+          z_result = PNGPARTS_API_WEIRD_FILTER;
+          break;
+        }
         if (idat->x >= idat->line_width) {
           pngparts_pngread_idat_add(idat, pixel_byte_size);
           idat->x = 0;
