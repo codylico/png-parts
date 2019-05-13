@@ -42,7 +42,7 @@ int test_image_header
     "  \"interlace\": %i\n}}\n",
     width, height, bit_depth, color_type, compression, filter, interlace
   );
-  if (width > 20000 || height > 20000) return PNGPARTS_API_UNSUPPORTED;
+  if (width > 10000 || height > 10000) return PNGPARTS_API_UNSUPPORTED;
   void* bytes = malloc(width*height * 4);
   if (bytes == NULL) return PNGPARTS_API_UNSUPPORTED;
   img->width = (int)width;

@@ -68,7 +68,7 @@ int test_image_resize
   (void* img_ptr, long int width, long int height)
 {
   struct test_image *img = (struct test_image*)img_ptr;
-  if (width > 2000 || height > 2000) return PNGPARTS_API_UNSUPPORTED;
+  if (width > 10000 || height > 10000) return PNGPARTS_API_UNSUPPORTED;
   void* bytes = malloc(width*height * 4);
   if (bytes == NULL) return PNGPARTS_API_UNSUPPORTED;
   img->width = (int)width;
