@@ -169,6 +169,11 @@ static int pngparts_deflate_ready_triple(struct pngparts_flate* fl);
  */
 static int pngparts_deflate_ready_pair(struct pngparts_flate* fl);
 
+/*
+ * Clear the inscription text.
+ * - fl the deflater structure to rewrite
+ */
+static void pngparts_deflate_clear_block(struct pngparts_flate* fl);
 
 int pngparts_deflate_ready_pair(struct pngparts_flate* fl){
   unsigned int const block_length = fl->block_length;
@@ -292,6 +297,19 @@ void pngparts_deflate_record_skippable
   return;
 }
 
+void pngparts_deflate_clear_block(struct pngparts_flate* fl) {
+  fl->inscription_pos = 0;
+  fl->block_length = 0;
+  fl->inscription_commit = 0;
+  /* add stale markers */{
+    unsigned int i;
+    for (i = 0; i < fl->inscription_size; ++i){
+      fl->inscription_text[i] |= 32768;
+    }
+  }
+  return;
+}
+
 int pngparts_deflate_churn_input
   (struct pngparts_flate *fl, int ch)
 {
@@ -377,8 +395,10 @@ int pngparts_deflate_churn_input
             }
             fl->alt_inscription[0] = 3;
             fl->alt_inscription[1] = history_point;
-            pngparts_deflate_queue_pair
+            result = pngparts_deflate_queue_pair
               (fl, fl->alt_inscription[0], fl->alt_inscription[1]);
+            if (result == PNGPARTS_API_NOT_FOUND)
+                break;
           }
         } else {
           /* block is full */
@@ -561,9 +581,11 @@ int pngparts_deflate_queue_check
 int pngparts_deflate_queue_value
   (struct pngparts_flate *fl, unsigned short int value)
 {
-  if (fl->block_length < fl->inscription_size){
-    fl->inscription_text[fl->block_length] = value;
-    fl->block_length += 1;
+  unsigned int const commit = fl->inscription_commit;
+  if (commit < fl->inscription_size){
+    fl->inscription_text[commit] = value;
+    fl->block_length = commit + 1;
+    fl->inscription_commit = commit + 1;
     return PNGPARTS_API_OK;
   } else return PNGPARTS_API_OVERFLOW;
 }
@@ -640,7 +662,9 @@ int pngparts_deflate_compose_tables(struct pngparts_flate *fl){
         } else result = PNGPARTS_API_BAD_BLOCK;
         break;
       case 1:
-        code_switch = 2;
+        if (value < 32768) {
+          code_switch = 2;
+        } else result = PNGPARTS_API_BAD_BLOCK;
         break;
       case 2:
         if (value < 30){
@@ -655,7 +679,9 @@ int pngparts_deflate_compose_tables(struct pngparts_flate *fl){
         } else result = PNGPARTS_API_BAD_BLOCK;
         break;
       case 3:
-        code_switch = 0;
+        if (value < 32768) {
+          code_switch = 0;
+        } else result = PNGPARTS_API_BAD_BLOCK;
         break;
       }
       if (result != PNGPARTS_API_OK)
@@ -787,12 +813,11 @@ int pngparts_deflate_fashion_chunk
     }
     if (fl->inscription_pos >= fl->block_length){
       /* back to initial state */
-      fl->block_length = 0;
-      fl->inscription_commit = 0;
       if (last) {
         state = 5;
       } else
         state = 0;
+      pngparts_deflate_clear_block(fl);
       result = PNGPARTS_API_LOOPED_STATE;
     }
     break;
@@ -846,9 +871,7 @@ int pngparts_deflate_fashion_chunk
           } else
             state = 0;
           /* clear the block */
-          fl->inscription_pos = 0;
-          fl->block_length = 0;
-          fl->inscription_commit = 0;
+          pngparts_deflate_clear_block(fl);
         } else if (value > 256) {
           struct pngparts_flate_extra const extra =
               pngparts_flate_length_decode(value);
@@ -1390,6 +1413,7 @@ int pngparts_deflate_one
   unsigned int trouble_counter = 0;
   unsigned int const trouble_max = fl->inscription_size+341;
   int skip_back = 1;
+  unsigned int remix_count = 0;
   while (result == PNGPARTS_API_OK
   &&  skip_back)
   {
@@ -1403,6 +1427,11 @@ int pngparts_deflate_one
     skip_back = 0;
     switch (fl->state&PNGPARTS_DEFLATE_STATE){
     case 0: /* base */
+      remix_count += 1;
+      if (remix_count > 1){
+        /* don't do the same byte twice */
+        break;
+      }
       result = pngparts_deflate_churn_input(fl, ch);
       if (result == PNGPARTS_API_OK)
         break;

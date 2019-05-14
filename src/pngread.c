@@ -684,6 +684,9 @@ int pngparts_pngread_idat_msg
             idat->nextbuf + 16 - idat->next_left, idat->next_left);
           z_result = (*idat->z.churn_cb)
             (idat->z.cb_data, PNGPARTS_API_Z_NORMAL);
+          if (z_result < 0){
+            /* the zlib stream is corrupted; give up and */break;
+          }
         } else z_result = PNGPARTS_API_OK;
         /* report bytes */ {
           unsigned int byte_count = (*idat->z.output_left_cb)(idat->z.cb_data);
@@ -709,7 +712,7 @@ int pngparts_pngread_idat_msg
               pngparts_pngread_idat_shift(idat, 1);
               memset(idat->nextbuf, 0, 8 * sizeof(unsigned char));
               if (filter_code > 4) {
-                result = PNGPARTS_API_WEIRD_FILTER;
+                z_result = PNGPARTS_API_WEIRD_FILTER;
                 break;
               }
               /*fprintf(stderr, "line %3li: filter %i\n",
@@ -789,6 +792,9 @@ int pngparts_pngread_idat_msg
           {
             /* done */
           }break;
+        }
+        if (z_result == PNGPARTS_API_WEIRD_FILTER){
+          /* the scanline stream is broken, so */break;
         }
         if (idat->x >= idat->line_width) {
           pngparts_pngread_idat_add(idat, pixel_byte_size);
