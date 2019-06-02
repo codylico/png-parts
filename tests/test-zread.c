@@ -95,6 +95,7 @@ int main(int argc, char**argv){
       pngparts_z_setup_input(&reader,inbuf,readlen);
       pngparts_z_setup_output(&reader,outbuf,sizeof(outbuf));
       while (!pngparts_z_input_done(&reader)){
+        size_t writelen;
         result = pngparts_zread_parse(&reader,PNGPARTS_API_Z_NORMAL);
         if (result == PNGPARTS_API_NEED_DICT
         &&  dict_fname != NULL)
@@ -158,7 +159,7 @@ int main(int argc, char**argv){
           if (result != PNGPARTS_API_OK) break;
           else continue;
         } else if (result < 0) break;
-        size_t writelen = pngparts_z_output_left(&reader);
+        writelen = pngparts_z_output_left(&reader);
         if (writelen > 0){
           size_t writeresult =
             fwrite(outbuf,sizeof(unsigned char),writelen,to_write);

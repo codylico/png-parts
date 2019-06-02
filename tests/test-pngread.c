@@ -36,6 +36,7 @@ int test_image_header
     short color_type, short compression, short filter, short interlace)
 {
   struct test_image *img = (struct test_image*)img_ptr;
+  void* bytes;
   fprintf(stderr, "{\"image info\":{\n"
     "  \"width\": %li,\n"
     "  \"height\": %li,\n"
@@ -47,7 +48,7 @@ int test_image_header
     width, height, bit_depth, color_type, compression, filter, interlace
   );
   if (width > 2000 || height > 2000) return PNGPARTS_API_UNSUPPORTED;
-  void* bytes = malloc(width*height * 4);
+  bytes = malloc(width*height * 4);
   if (bytes == NULL) return PNGPARTS_API_UNSUPPORTED;
   img->width = (int)width;
   img->height = (int)height;
