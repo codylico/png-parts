@@ -448,16 +448,28 @@ void pngparts_flate_dynamic_codes(struct pngparts_flate_huff* hf){
 }
 
 struct pngparts_flate_extra pngparts_flate_length_decode(int literal){
+#if (__STDC_VERSION__ >= 199901L)
   struct pngparts_flate_extra const out =
     {literal,PNGPARTS_API_NOT_FOUND,PNGPARTS_API_NOT_FOUND};
+#else
+  struct pngparts_flate_extra out =
+    {0,PNGPARTS_API_NOT_FOUND,PNGPARTS_API_NOT_FOUND};
+  out.literal = literal;
+#endif /*__STDC_VERSION__*/
   if (literal >= 257 && literal <= 285){
     return pngparts_flate_length_table[literal-257];
   }
   return out;
 }
 struct pngparts_flate_extra pngparts_flate_distance_decode(int dcode){
+#if (__STDC_VERSION__ >= 199901L)
   struct pngparts_flate_extra const out =
     {dcode,PNGPARTS_API_NOT_FOUND,PNGPARTS_API_NOT_FOUND};
+#else
+  struct pngparts_flate_extra out =
+    {0,PNGPARTS_API_NOT_FOUND,PNGPARTS_API_NOT_FOUND};
+  out.literal = dcode;
+#endif /*__STDC_VERSION__*/
   if (dcode >= 0 && dcode <= 29){
     return pngparts_flate_distance_table[dcode];
   }
@@ -465,8 +477,14 @@ struct pngparts_flate_extra pngparts_flate_distance_decode(int dcode){
 }
 
 struct pngparts_flate_extra pngparts_flate_length_encode(int length){
+#if (__STDC_VERSION__ >= 199901L)
   struct pngparts_flate_extra const out =
     {PNGPARTS_API_NOT_FOUND,length,PNGPARTS_API_NOT_FOUND};
+#else
+  struct pngparts_flate_extra out =
+    {PNGPARTS_API_NOT_FOUND,0,PNGPARTS_API_NOT_FOUND};
+  out.length_value = length;
+#endif /*__STDC_VERSION__*/
   if (length >= 3 && length <= 258){
     /* sorted */{
       int start = 0;
@@ -490,8 +508,14 @@ struct pngparts_flate_extra pngparts_flate_length_encode(int length){
 struct pngparts_flate_extra pngparts_flate_distance_encode
   (unsigned int distance)
 {
+#if (__STDC_VERSION__ >= 199901L)
   struct pngparts_flate_extra const out =
     {PNGPARTS_API_NOT_FOUND,distance,PNGPARTS_API_NOT_FOUND};
+#else
+  struct pngparts_flate_extra out =
+    {PNGPARTS_API_NOT_FOUND,0,PNGPARTS_API_NOT_FOUND};
+  out.length_value = distance;
+#endif /*__STDC_VERSION__*/
   if (distance >= 1u && distance <= 32768u){
     /* sorted */{
       int start = 0;

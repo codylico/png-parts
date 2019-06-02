@@ -242,8 +242,14 @@ unsigned long int pngparts_png_crc32_tol(struct pngparts_png_crc32 chk){
 struct pngparts_png_crc32 pngparts_png_crc32_accum
   (struct pngparts_png_crc32 chk, int ch)
 {
-  struct pngparts_png_crc32 out =
+#if (__STDC_VERSION__ >= 199901L)
+  struct pngparts_png_crc32 const out =
     {(chk.accum>>8)^(pngparts_png_crc32_pre[(chk.accum^ch)&255])};
+#else
+  struct pngparts_png_crc32 out;
+  out.accum =
+    (chk.accum>>8)^(pngparts_png_crc32_pre[(chk.accum^ch)&255]);
+#endif /*__STDC_VERSION__*/
   return out;
 }
 void pngparts_png_buffer_setup
@@ -340,8 +346,8 @@ void pngparts_png_remove_chunk_cb
   link_2ptr = &p->chunk_cbs;
   while (link_ptr != NULL) {
     if (memcmp(link_ptr->cb.name, name, 4 * sizeof(unsigned char)) == 0) {
-      *link_2ptr = link_ptr->next;
       struct pngparts_png_message message;
+      *link_2ptr = link_ptr->next;
       message.byte = 0;
       memcpy(message.name, name, 4 * sizeof(unsigned char));
       message.ptr = NULL;

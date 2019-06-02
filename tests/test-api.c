@@ -13,9 +13,10 @@
 #include <stdio.h>
 
 int main(int argc, char **argv){
+  int i;
   fprintf(stdout,"API info: %i\n", pngparts_api_info());
   fprintf(stdout,"Error string:\n");
-  for (int i = -27; i <= 3; ++i){
+  for (i = -27; i <= 3; ++i){
     fprintf(stdout,"  %i:\t%s\n",i,pngparts_api_strerror(i));
   }
   return 0;

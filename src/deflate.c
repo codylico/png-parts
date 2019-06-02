@@ -20,7 +20,7 @@ enum pngparts_deflate_last_block {
 };
 
 enum pngparts_deflate_alphabet {
-  PNGPARTS_DEFLATE_MAXALPHABET = 3+286+30,
+  PNGPARTS_DEFLATE_MAXALPHABET = 3+286+30
 };
 
 /*
