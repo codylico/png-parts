@@ -321,26 +321,38 @@ void pngparts_aux_image_get_from8
 int pngparts_aux_read_png_8
   (struct pngparts_api_image* img, char const* fname)
 {
-  struct pngparts_api_image aux_img = {
-    /* callback data */img,
-    /* image start callback (read only)*/pngparts_aux_image_start8,
-    /* image color posting callback (read only)*/pngparts_aux_image_put_to8,
-    /* image describe callback (write only)*/pngparts_aux_image_describe8,
-    /* image color fetch callback (write only)*/pngparts_aux_image_get_from8
-    };
+  struct pngparts_api_image aux_img;
+  /* aux_img */{
+    /* callback data */
+    aux_img.cb_data = img;
+    /* image start callback (read only)*/
+    aux_img.start_cb = pngparts_aux_image_start8;
+    /* image color posting callback (read only)*/
+    aux_img.put_cb = pngparts_aux_image_put_to8;
+    /* image describe callback (write only)*/
+    aux_img.describe_cb = pngparts_aux_image_describe8;
+    /* image color fetch callback (write only)*/
+    aux_img.get_cb = pngparts_aux_image_get_from8;
+  }
   return pngparts_aux_read_png_16(&aux_img, fname);
 }
 
 int pngparts_aux_write_png_8
   (struct pngparts_api_image* img, char const* fname)
 {
-  struct pngparts_api_image aux_img = {
-    /* callback data */img,
-    /* image start callback (read only)*/pngparts_aux_image_start8,
-    /* image color posting callback (read only)*/pngparts_aux_image_put_to8,
-    /* image describe callback (write only)*/pngparts_aux_image_describe8,
-    /* image color fetch callback (write only)*/pngparts_aux_image_get_from8
-    };
+  struct pngparts_api_image aux_img;
+  /* aux_img */{
+    /* callback data */
+    aux_img.cb_data = img;
+    /* image start callback (read only)*/
+    aux_img.start_cb = pngparts_aux_image_start8;
+    /* image color posting callback (read only)*/
+    aux_img.put_cb = pngparts_aux_image_put_to8;
+    /* image describe callback (write only)*/
+    aux_img.describe_cb = pngparts_aux_image_describe8;
+    /* image color fetch callback (write only)*/
+    aux_img.get_cb = pngparts_aux_image_get_from8;
+  }
   return pngparts_aux_write_png_16(&aux_img, fname);
 }
 
@@ -518,29 +530,36 @@ int pngparts_aux_write_block
     unsigned int format, unsigned int bits, void const* data,
     char const* fname)
 {
+  struct pngparts_aux_block aux_img_data;
+  struct pngparts_api_image aux_img;
   if (bits != 8 && bits != 16){
     return PNGPARTS_API_BAD_PARAM;
   }
   if (height > 0x7fFFffFF || width > 0x7fFFffFF){
     return PNGPARTS_API_BAD_PARAM;
   }
-  struct pngparts_aux_block aux_img_data = {
-    /* width */width,
-    /* height */height,
-    /* stride */stride,
-    /* vstride */vstride,
-    /* format */format,
-    /* bits */bits,
-    /* data */NULL,
-    /* const_data */data
-    };
-  struct pngparts_api_image aux_img = {
-    /* callback data */&aux_img_data,
-    /* image start callback (read only)*/NULL,
-    /* image color posting callback (read only)*/NULL,
-    /* image describe callback (write only)*/pngparts_aux_block_describe,
-    /* image color fetch callback (write only)*/pngparts_aux_block_get
-    };
+  /* aux_img_data */{
+    aux_img_data.width = width;
+    aux_img_data.height = height;
+    aux_img_data.stride = stride;
+    aux_img_data.vstride = vstride;
+    aux_img_data.format = format;
+    aux_img_data.bits = bits;
+    aux_img_data.data = NULL;
+    aux_img_data.const_data = data;
+  };
+  /* aux_img */{
+    /* callback data */
+    aux_img.cb_data = &aux_img_data;
+    /* image start callback (read only)*/
+    aux_img.start_cb = NULL;
+    /* image color posting callback (read only)*/
+    aux_img.put_cb = NULL;
+    /* image describe callback (write only)*/
+    aux_img.describe_cb = pngparts_aux_block_describe;
+    /* image color fetch callback (write only)*/
+    aux_img.get_cb = pngparts_aux_block_get;
+  };
   return pngparts_aux_write_png_16(&aux_img, fname);
 }
 
@@ -550,29 +569,36 @@ int pngparts_aux_read_block
     unsigned int format, unsigned int bits, void* data,
     char const* fname)
 {
+  struct pngparts_aux_block aux_img_data;
+  struct pngparts_api_image aux_img;
   if (bits != 8 && bits != 16){
     return PNGPARTS_API_BAD_PARAM;
   }
   if (height > 0x7fFFffFF || width > 0x7fFFffFF){
     return PNGPARTS_API_BAD_PARAM;
   }
-  struct pngparts_aux_block aux_img_data = {
-    /* width */width,
-    /* height */height,
-    /* stride */stride,
-    /* vstride */vstride,
-    /* format */format,
-    /* bits */bits,
-    /* data */data,
-    /* const_data */data
+  /* aux_img_data */{
+    aux_img_data.width = width;
+    aux_img_data.height = height;
+    aux_img_data.stride = stride;
+    aux_img_data.vstride = vstride;
+    aux_img_data.format = format;
+    aux_img_data.bits = bits;
+    aux_img_data.data = data;
+    aux_img_data.const_data = data;
     };
-  struct pngparts_api_image aux_img = {
-    /* callback data */&aux_img_data,
-    /* image start callback (read only)*/pngparts_aux_block_start,
-    /* image color posting callback (read only)*/pngparts_aux_block_put,
-    /* image describe callback (write only)*/NULL,
-    /* image color fetch callback (write only)*/NULL
-    };
+  /* aux_img */{
+    /* callback data */
+    aux_img.cb_data = &aux_img_data;
+    /* image start callback (read only)*/
+    aux_img.start_cb = pngparts_aux_block_start;
+    /* image color posting callback (read only)*/
+    aux_img.put_cb = pngparts_aux_block_put;
+    /* image describe callback (write only)*/
+    aux_img.describe_cb = NULL;
+    /* image color fetch callback (write only)*/
+    aux_img.get_cb = NULL;
+  }
   return pngparts_aux_read_png_16(&aux_img, fname);
 }
 
@@ -607,13 +633,19 @@ int pngparts_aux_read_header
     struct pngparts_png parser;
     unsigned int start_bits = 0;
     struct pngparts_aux_indirect_data aux_indirect;
-    struct pngparts_api_image aux_img = {
-      /* callback data */&aux_indirect,
-      /* image start callback (read only)*/&pngparts_aux_indirect_read_header,
-      /* image color posting callback (read only)*/NULL,
-      /* image describe callback (write only)*/NULL,
-      /* image color fetch callback (write only)*/NULL
-      };
+    struct pngparts_api_image aux_img;
+    /* aux_img */{
+      /* callback data */
+      aux_img.cb_data = &aux_indirect;
+      /* image start callback (read only)*/
+      aux_img.start_cb = &pngparts_aux_indirect_read_header;
+      /* image color posting callback (read only)*/
+      aux_img.put_cb = NULL;
+      /* image describe callback (write only)*/
+      aux_img.describe_cb = NULL;
+      /* image color fetch callback (write only)*/
+      aux_img.get_cb = NULL;
+    }
     aux_indirect.set = 0;
     do {
       pngparts_pngread_init(&parser);

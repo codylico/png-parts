@@ -405,10 +405,10 @@ void pngparts_pngread_idat_submit
   (struct pngparts_png* p, struct pngparts_pngread_idat* idat)
 {
   int const color_type = p->header.color_type;
-  struct pngparts_api_image img;
-  pngparts_png_get_image_cb(p, &img);
   static const int multiplier[9] =
     { 0, 0xffff, 0x5555, 0x2492, 0x1111, 0, 0, 0, 0x0101 };
+  struct pngparts_api_image img;
+  pngparts_png_get_image_cb(p, &img);
   switch (idat->pixel_size) {
   case 1: /* either L/1 or index/1 */
   case 2: /* either L/2 or index/2 */
