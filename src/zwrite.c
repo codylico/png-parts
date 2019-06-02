@@ -61,7 +61,6 @@ int pngparts_zwrite_generate(void *zs_v, int mode){
   struct pngparts_z *zs = (struct pngparts_z *)zs_v;
   int result = zs->last_result;
   int state = zs->state;
-  int shortpos = zs->shortpos;
   int sticky_finish = ((mode&PNGPARTS_API_Z_FINISH) != 0);
   int trouble_counter = 0;
   if (result == PNGPARTS_API_OVERFLOW){
@@ -216,7 +215,6 @@ int pngparts_zwrite_generate(void *zs_v, int mode){
   }
   zs->last_result = result;
   zs->state = (short)state;
-  zs->shortpos = (short)shortpos;
   if (result){
     zs->flags_tf |= 2;
   }
