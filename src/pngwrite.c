@@ -461,6 +461,8 @@ struct pngparts_pngwrite_idat {
   /* current and same-line previous pixel data */
   unsigned char nextbuf[16];
   unsigned char filter_byte;
+  /* sieve */
+  struct pngparts_pngwrite_sieve sieve;
 };
 
 void pngparts_pngwrite_filter_finish(struct pngparts_pngwrite_idat* idat){
@@ -757,7 +759,23 @@ int pngparts_pngwrite_generate_chunk
             break;
           }
         }
-        idat->filter_byte = 0;/* choose identity filter for now */
+        if (idat->sieve.filter_cb != NULL){
+          struct pngparts_api_image sieve_img;
+          int result_filter;
+          pngparts_png_get_image_cb(p, &sieve_img);
+          result_filter = (*idat->sieve.filter_cb)
+            ( idat->sieve.cb_data, sieve_img.cb_data, sieve_img.get_cb,
+              idat->line_width, idat->y, idat->level);
+          if (result_filter >= 0 && result_filter <= 4){
+            idat->filter_byte = result_filter;
+          } else {
+            /* report invalid filter type */
+            total_result = PNGPARTS_API_WEIRD_FILTER;
+            break;
+          }
+        } else {
+          idat->filter_byte = 0;/* choose identity filter for now */
+        }
         (*idat->z.set_input_cb)(idat->z.cb_data, &idat->filter_byte, 1);
         idat->filter_mode = idat->filter_byte;
         idat->x = 0;
@@ -789,6 +807,9 @@ int pngparts_pngwrite_generate_chunk
           pngparts_pngwrite_filter_finish(idat);
         }
       }break;
+    default:
+      total_result = PNGPARTS_API_BAD_STATE;
+      break;
     }
     input_pending = !(*idat->z.input_done_cb)(idat->z.cb_data);
   }
@@ -945,6 +966,15 @@ int pngparts_pngwrite_idat_msg
     }break;
   case PNGPARTS_PNG_M_DESTROY:
     {
+      /* release the old sieve */{
+        if (idat->sieve.free_cb != NULL){
+          (*idat->sieve.free_cb)(idat->sieve.cb_data);
+        }
+        idat->sieve.cb_data = NULL;
+        idat->sieve.free_cb = NULL;
+        idat->sieve.filter_cb = NULL;
+      }
+      /* take care of self */
       free(idat->outbuf);
       free(idat->inbuf);
       free(idat);
@@ -998,10 +1028,38 @@ int pngparts_pngwrite_assign_idat_api
     ptr->outpos = 0;
     ptr->outlen = 0;
     ptr->filter_mode = -1;
+    ptr->sieve.cb_data = NULL;
+    ptr->sieve.filter_cb = NULL;
+    ptr->sieve.free_cb = NULL;
     cb->cb_data = ptr;
     cb->message_cb = pngparts_pngwrite_idat_msg;
     return PNGPARTS_API_OK;
   }
+}
+
+int pngparts_pngwrite_set_idat_sieve
+  ( struct pngparts_png_chunk_cb* cb,
+    struct pngparts_pngwrite_sieve const* sieve)
+{
+  struct pngparts_pngwrite_idat* idat;
+  unsigned char static const name[4] = { 0x49,0x44,0x41,0x54 };
+  /* check that this is an IDAT chunk callback */{
+    if (memcmp(name, cb->name, 4*sizeof(unsigned char)) != 0
+    ||  cb->message_cb != pngparts_pngwrite_idat_msg)
+    {
+      return PNGPARTS_API_BAD_PARAM;
+    }
+  }
+  idat = (struct pngparts_pngwrite_idat*)cb->cb_data;
+  /* release the old sieve */{
+    if (idat->sieve.free_cb != NULL){
+      (*idat->sieve.free_cb)(idat->sieve.cb_data);
+    }
+  }
+  /* set new sieve */{
+    memcpy(&idat->sieve, sieve, sizeof(struct pngparts_pngwrite_sieve));
+  }
+  return PNGPARTS_API_OK;
 }
 /*END   IDAT*/
 
