@@ -69,6 +69,8 @@ int test_sieve_set(struct pngparts_png_chunk_cb* cb, char const* s){
         data->filter_mode = 0;
       } else if (strcmp("sub",s) == 0){
         data->filter_mode = 1;
+      } else if (strcmp("up",s) == 0){
+        data->filter_mode = 2;
       } else data->filter_mode = -1;
     } else data->filter_mode = -1;
     sieve_iface.cb_data = data;
@@ -93,6 +95,9 @@ int test_sieve_filter
     break;
   case 1: /* sub */
     return 1;
+    break;
+  case 2: /* up */
+    return 2;
     break;
   default:
     return 0;
@@ -404,7 +409,7 @@ int main(int argc, char**argv) {
         "  -b (depth)         set sample bit depth\n"
         "  -p (file)          read palette file\n"
         "  -a (file)          read alpha channel file\n"
-        "  -s (filter_code)   filter selector (one of \"none\" or \"sub\")\n"
+        "  -s (filter_code)   filter selector (one of none, sub, up)\n"
       );
       return 2;
     }
