@@ -72,6 +72,23 @@ static int pngparts_pngwrite_generate_chunk
 static void pngparts_pngwrite_idat_fetch
   (struct pngparts_png* p, struct pngparts_pngwrite_idat* idat);
 
+/*
+ * Shift sample data in the next buffer.
+ * - d IDAT callback structure
+ * - shift size of block to shift in bytes
+ */
+static void pngparts_pngwrite_idat_shift
+  (struct pngparts_pngwrite_idat* d, int shift);
+
+/*
+ * Add pixel data from the next buffer to the compression input buffer.
+ * - d IDAT callback structure
+ * - shift size of block to shift in bytes
+ */
+static void pngparts_pngwrite_idat_add
+  (struct pngparts_pngwrite_idat* d, int shift);
+
+
 void pngparts_pngwrite_put16clamp16(unsigned char* b, unsigned int w) {
   b[0] = (w>> 8)&255;
   b[1] = (w>> 0)&255;
