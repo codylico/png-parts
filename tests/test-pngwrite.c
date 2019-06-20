@@ -73,6 +73,8 @@ int test_sieve_set(struct pngparts_png_chunk_cb* cb, char const* s){
         data->filter_mode = 2;
       } else if (strcmp("average",s) == 0){
         data->filter_mode = 3;
+      } else if (strcmp("paeth",s) == 0){
+        data->filter_mode = 4;
       } else data->filter_mode = -1;
     } else data->filter_mode = -1;
     sieve_iface.cb_data = data;
@@ -103,6 +105,9 @@ int test_sieve_filter
     break;
   case 3: /* average */
     return 3;
+    break;
+  case 4: /* Paeth */
+    return 4;
     break;
   default:
     return 0;
@@ -414,8 +419,8 @@ int main(int argc, char**argv) {
         "  -b (depth)         set sample bit depth\n"
         "  -p (file)          read palette file\n"
         "  -a (file)          read alpha channel file\n"
-        "  -s (filter_code)   filter selector (one of none, sub,\n"
-        "                       up, average)\n"
+        "  -s (filter_code)   filter selector (one of none, sub, up,\n"
+        "                       average, paeth)\n"
       );
       return 2;
     }
