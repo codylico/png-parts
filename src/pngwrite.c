@@ -73,6 +73,18 @@ static void pngparts_pngwrite_idat_fetch
   (struct pngparts_png* p, struct pngparts_pngwrite_idat* idat);
 
 /*
+ * Finish a filtered scan line.
+ * - d IDAT callback structure
+ */
+static void pngparts_pngwrite_filter_finish(struct pngparts_pngwrite_idat* d);
+
+/*
+ * Continue to the next scan line.
+ * - d IDAT callback structure
+ */
+static void pngparts_pngwrite_line_continue(struct pngparts_pngwrite_idat* d);
+
+/*
  * Shift sample data in the next buffer.
  * - d IDAT callback structure
  * - shift size of block to shift in bytes
@@ -451,6 +463,25 @@ struct pngparts_pngwrite_idat {
   unsigned char filter_byte;
 };
 
+void pngparts_pngwrite_filter_finish(struct pngparts_pngwrite_idat* idat){
+  /* post to compressor */
+  (*idat->z.set_input_cb)(idat->z.cb_data, idat->inbuf, idat->insize);
+  /* prepare for the next line */
+  pngparts_pngwrite_line_continue(idat);
+  return;
+}
+
+void pngparts_pngwrite_line_continue(struct pngparts_pngwrite_idat* idat){
+  int const shift_size = (idat->pixel_size+7)/8;
+  /* add the last pixel for the scan line */
+  pngparts_pngwrite_idat_add(idat, shift_size);
+  /* prepare for the next line */{
+    idat->y += 1;
+    idat->filter_mode = -1;
+  }
+  return;
+}
+
 int pngparts_pngwrite_start_line
   (struct pngparts_png* p, struct pngparts_pngwrite_idat* idat)
 {
@@ -729,11 +760,13 @@ int pngparts_pngwrite_generate_chunk
         idat->filter_byte = 0;/* choose identity filter for now */
         (*idat->z.set_input_cb)(idat->z.cb_data, &idat->filter_byte, 1);
         idat->filter_mode = idat->filter_byte;
+        idat->x = 0;
+        memset(idat->nextbuf,0,sizeof(idat->nextbuf));
+        idat->inpos = 0;
       }break;
     case 0: /* identity filter */
       {
         int const shift_size = (idat->pixel_size+7)/8;
-        idat->inpos = 0;
         if (shift_size <= 0){
           /* fast quit by */loop_trap = 0;
         } else for (idat->x = 0; idat->x < idat->line_width; ){
@@ -752,13 +785,8 @@ int pngparts_pngwrite_generate_chunk
             pngparts_pngwrite_idat_shift(idat, shift_size);
           }
         }
-        /* add the last pixel for the scan line */
-        pngparts_pngwrite_idat_add(idat, shift_size);
-        /* post to compressor */
-        (*idat->z.set_input_cb)(idat->z.cb_data, idat->inbuf, idat->insize);
         /* prepare for the next line */{
-          idat->y += 1;
-          idat->filter_mode = -1;
+          pngparts_pngwrite_filter_finish(idat);
         }
       }break;
     }
