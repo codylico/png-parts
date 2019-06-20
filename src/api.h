@@ -117,6 +117,12 @@ enum pngparts_api_z_mode {
 
 
 /*
+ * Generic free callback.
+ * - ptr data to release
+ */
+typedef void (*pngparts_api_free_cb)(void* ptr);
+
+/*
  * Start callback.
  * - cb_data flate callback data
  * - fdict dictionary
