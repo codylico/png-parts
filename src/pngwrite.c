@@ -879,6 +879,44 @@ int pngparts_pngwrite_generate_chunk
           pngparts_pngwrite_line_continue(idat);
         }
       }break;
+    case 3: /* average filter */
+      {
+        if (idat->pixel_size <= 0){
+          /* fast quit by */loop_trap = 0;
+        } else if (idat->x < idat->line_width){
+          int const shift_size = (idat->pixel_size+7)/8;
+          int const x_pre = idat->x;
+          /* generate data */{
+            pngparts_pngwrite_idat_fetch(p, idat);
+          }
+          if (idat->x <= x_pre){
+            /*ensure termination by setting */idat->x = x_pre+1;
+          }
+          /* apply the filter */{
+            int sub_i;
+            for (sub_i = 0; sub_i < shift_size; ++sub_i){
+              unsigned char const xmbpp = idat->nextbuf[8-shift_size+sub_i];
+              unsigned char const prior = idat->y > 0
+                ? idat->inbuf[idat->inpos+sub_i]
+                : 0u;
+              unsigned char const x = idat->nextbuf[8+sub_i];
+              unsigned char const avg = ((((unsigned int)xmbpp)+prior)>>1);
+              idat->filtered_buf[sub_i] = ((256u+x-avg)&255u);
+            }
+          }
+          /* set the input buffer */{
+            (*idat->z.set_input_cb)
+              (idat->z.cb_data, &idat->filtered_buf, shift_size);
+          }
+          /* add and shift */{
+            pngparts_pngwrite_idat_add(idat, shift_size);
+            pngparts_pngwrite_idat_shift(idat, shift_size);
+          }
+        }
+        if (idat->x >= idat->line_width){
+          pngparts_pngwrite_line_continue(idat);
+        }
+      }break;
     default:
       total_result = PNGPARTS_API_BAD_STATE;
       break;
