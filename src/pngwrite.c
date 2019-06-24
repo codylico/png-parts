@@ -937,7 +937,7 @@ int pngparts_pngwrite_generate_chunk
               unsigned char const prior = idat->y > 0
                 ? idat->inbuf[idat->inpos+sub_i]
                 : 0u;
-              unsigned char const priormbpp = ((idat->y > 0) && (idat->x > 0))
+              unsigned char const priormbpp = ((idat->y > 0) && (x_pre > 0))
                 ? idat->inbuf[idat->inpos-shift_size+sub_i]
                 : 0u;
               unsigned char const x = idat->nextbuf[8+sub_i];
