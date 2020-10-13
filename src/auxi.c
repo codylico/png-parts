@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <limits.h>
 
 static unsigned int pngparts_aux_block_form(unsigned int f);
 
@@ -54,6 +55,19 @@ static void pngparts_aux_block_get
 static int pngparts_aux_indirect_read_header
   ( void* img, long int width, long int height, short bit_depth,
     short color_type, short compression, short filter, short interlace);
+
+static int pngparts_aux_sieve_zero
+  ( void* user_data, void* img_data, pngparts_api_image_get_cb img_get_cb,
+    long int width, long int y, int level);
+static int pngparts_aux_sieve_adapt
+  ( void* user_data, void* img_data, pngparts_api_image_get_cb img_get_cb,
+    long int width, long int y, int level);
+
+/* possibly inexact `labs`, okay for heuristics */
+static unsigned long int pngparts_aux_sieve_labs(unsigned long int v);
+
+
+
 
 int pngparts_aux_destroy_png_chunk(struct pngparts_png_chunk_cb const* cb){
   if (cb->message_cb != NULL){
@@ -177,11 +191,19 @@ int pngparts_aux_write_png_16
     struct pngparts_png writer;
     struct pngparts_z zwriter;
     struct pngparts_flate deflater;
+    struct pngparts_pngwrite_sieve sieve;
     unsigned int start_bits = 0;
     do {
       /* generate the PNG stream */
       pngparts_pngwrite_init(&writer);
       start_bits |= 1;
+      /* set the sieve */{
+        struct pngparts_png_header hdr;
+        (*img->describe_cb)(img->cb_data, &hdr.width, &hdr.height,
+            &hdr.bit_depth, &hdr.color_type, &hdr.compression,
+            &hdr.filter, &hdr.interlace);
+        pngparts_aux_set_sieve2083(&sieve, &hdr);
+      }
       /* set image callback */{
         pngparts_png_set_image_cb(&writer, img);
       }
@@ -200,6 +222,19 @@ int pngparts_aux_write_png_16
           int const idat_result =
             pngparts_pngwrite_assign_idat_api(&idat_api, &z_api, 0);
           if (idat_result != PNGPARTS_API_OK){
+            if (sieve.free_cb != NULL) {
+              (*sieve.free_cb)(sieve.cb_data);
+            }
+            break;
+          }
+        }
+        /* attach the sieve */{
+          int const sieve_result =
+            pngparts_pngwrite_set_idat_sieve(&idat_api, &sieve);
+          if (sieve_result != PNGPARTS_API_OK) {
+            if (sieve.free_cb != NULL) {
+              (*sieve.free_cb)(sieve.cb_data);
+            }
             break;
           }
         }
@@ -316,6 +351,123 @@ void pngparts_aux_image_get_from8
   *blue = (xblue&255)*257;
   *alpha = (xalpha&255)*257;
   return;
+}
+
+unsigned long int pngparts_aux_sieve_labs(unsigned long int v) {
+  return v > (LONG_MAX) ? (~v)+1lu : v;
+}
+
+int pngparts_aux_sieve_zero
+  ( void* user_data, void* img_data, pngparts_api_image_get_cb img_get_cb,
+    long int width, long int y, int level)
+{
+  return 0;
+}
+
+int pngparts_aux_sieve_adapt
+  ( void* user_data, void* img_data, pngparts_api_image_get_cb img_get_cb,
+    long int width, long int y, int level)
+{
+  unsigned long int x_start, x_stride;
+  long int y_stride;
+  unsigned long int const x_end =
+    (unsigned long int)(width < 0 ? LONG_MAX : width);
+  unsigned long int filter_sum[5] = {0u};
+  /* select the stride */{
+    switch (level) {
+    case 1: x_start = 0u; x_stride = 8u; y_stride = -8; break;
+    case 2: x_start = 4u; x_stride = 8u; y_stride = -8; break;
+    case 3: x_start = 0u; x_stride = 4u; y_stride = -8; break;
+    case 4: x_start = 2u; x_stride = 4u; y_stride = -4; break;
+    case 5: x_start = 0u; x_stride = 2u; y_stride = -4; break;
+    case 6: x_start = 1u; x_stride = 2u; y_stride = -2; break;
+    case 7:
+    default: x_start = 0u; x_stride = 1u; y_stride = -1; break;
+    }
+  }
+  /* accumulate */{
+    unsigned long int x;
+    struct tmp_pixel {
+      unsigned int red, green, blue, alpha;
+    };
+    struct tmp_pixel const zero = {0u};
+    struct tmp_pixel corner = {0u}, left = {0u}, up = {0u}, here = {0u};
+    long int const up_coord = y + y_stride;
+    for (x = x_start; x < x_end; x += x_stride) {
+      long int const x_coord = (long int)x;
+      /* advance the pixels */{
+        memcpy(&corner, &up, sizeof(struct tmp_pixel));
+        memcpy(&left, &here, sizeof(struct tmp_pixel));
+        memcpy(&up, &zero, sizeof(struct tmp_pixel));
+        memcpy(&here, &zero, sizeof(struct tmp_pixel));
+      }
+      /* acquire the up pixel */if (up_coord >= 0) {
+        (*img_get_cb)(img_data, x_coord, up_coord,
+            &up.red, &up.green, &up.blue, &up.alpha);
+        up.red >>= 8;
+        up.green >>= 8;
+        up.blue >>= 8;
+        up.alpha >>= 8;
+      }
+      /* acquire the here pixel */{
+        (*img_get_cb)(img_data, x_coord, y,
+            &here.red, &here.green, &here.blue, &here.alpha);
+        here.red >>= 8;
+        here.green >>= 8;
+        here.blue >>= 8;
+        here.alpha >>= 8;
+      }
+      /* filter type 0: None */{
+        filter_sum[0] += here.red;
+        filter_sum[0] += here.green;
+        filter_sum[0] += here.blue;
+        filter_sum[0] += here.alpha;
+      }
+      /* filter type 1: Sub */{
+        filter_sum[1] += (here.red - left.red);
+        filter_sum[1] += (here.green - left.green);
+        filter_sum[1] += (here.blue - left.blue);
+        filter_sum[1] += (here.alpha - left.alpha);
+      }
+      /* filter type 2: Up */{
+        filter_sum[2] += (here.red - up.red);
+        filter_sum[2] += (here.green - up.green);
+        filter_sum[2] += (here.blue - up.blue);
+        filter_sum[2] += (here.alpha - up.alpha);
+      }
+      /* filter type 3: Average */{
+        filter_sum[3] += (here.red - ((left.red+up.red)>>1));
+        filter_sum[3] += (here.green - ((left.green+up.green)>>1));
+        filter_sum[3] += (here.blue - ((left.blue+up.blue)>>1));
+        filter_sum[3] += (here.alpha - ((left.alpha+up.alpha)>>1));
+      }
+      /* filter type 4: Paeth */{
+        struct tmp_pixel const predict = {
+            pngparts_png_paeth_predict(left.red,up.red,corner.red),
+            pngparts_png_paeth_predict(left.green,up.green,corner.green),
+            pngparts_png_paeth_predict(left.blue,up.blue,corner.blue),
+            pngparts_png_paeth_predict(left.alpha,up.alpha,corner.alpha)
+          };
+        filter_sum[4] += (here.red - predict.red);
+        filter_sum[4] += (here.green - predict.green);
+        filter_sum[4] += (here.blue - predict.blue);
+        filter_sum[4] += (here.alpha - predict.alpha);
+      }
+    }
+  }
+  /* choose the minimum difference */{
+    int choice = 0;
+    unsigned long int value = pngparts_aux_sieve_labs(filter_sum[0]);
+    int i;
+    for (i = 1; i < 5; ++i) {
+      unsigned long int abssum = pngparts_aux_sieve_labs(filter_sum[i]);
+      if (abssum < value) {
+        choice = i;
+        value = abssum;
+      }
+    }
+    return choice;
+  }
 }
 
 int pngparts_aux_read_png_8
@@ -689,4 +841,15 @@ int pngparts_aux_read_header
     pngparts_pngread_free(&parser);
     return result<0?result:PNGPARTS_API_OK;
   } else return PNGPARTS_API_IO_ERROR;
+}
+
+void pngparts_aux_set_sieve2083
+  (struct pngparts_pngwrite_sieve* sv, struct pngparts_png_header* header)
+{
+  sv->cb_data = NULL;
+  sv->free_cb = NULL;
+  if (header->color_type == 3 || header->bit_depth < 8)
+    sv->filter_cb = pngparts_aux_sieve_zero;
+  else sv->filter_cb = pngparts_aux_sieve_adapt;
+  return;
 }

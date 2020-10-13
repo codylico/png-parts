@@ -1,7 +1,7 @@
 /*
  * PNG-parts
  * parts of a Portable Network Graphics implementation
- * Copyright 2018-2019 Cody Licorish
+ * Copyright 2018-2020 Cody Licorish
  *
  * Licensed under the MIT License.
  *
@@ -19,6 +19,7 @@ extern "C" {
 
 struct pngparts_png_chunk_cb;
 struct pngparts_png_header;
+struct pngparts_pngwrite_sieve;
 
 enum pngparts_aux_format {
   /* one sample of luminance */
@@ -132,6 +133,15 @@ int pngparts_aux_read_block
 PNGPARTS_API
 int pngparts_aux_read_header
   (struct pngparts_png_header* header, char const* fname);
+
+/*
+ * Configure a sieve to use RFC 2083 section 9.6 recommendations.
+ * - sv the sieve to configure
+ * - header image header from which to configure
+ */
+PNGPARTS_API
+void pngparts_aux_set_sieve2083
+  (struct pngparts_pngwrite_sieve* sv, struct pngparts_png_header* header);
 
 #ifdef __cplusplus
 };
