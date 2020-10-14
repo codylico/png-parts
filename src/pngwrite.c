@@ -72,6 +72,35 @@ static int pngparts_pngwrite_generate_chunk
 static void pngparts_pngwrite_idat_fetch
   (struct pngparts_png* p, struct pngparts_pngwrite_idat* idat);
 
+/*
+ * Finish a filtered scan line.
+ * - d IDAT callback structure
+ */
+static void pngparts_pngwrite_filter_finish(struct pngparts_pngwrite_idat* d);
+
+/*
+ * Continue to the next scan line.
+ * - d IDAT callback structure
+ */
+static void pngparts_pngwrite_line_continue(struct pngparts_pngwrite_idat* d);
+
+/*
+ * Shift sample data in the next buffer.
+ * - d IDAT callback structure
+ * - shift size of block to shift in bytes
+ */
+static void pngparts_pngwrite_idat_shift
+  (struct pngparts_pngwrite_idat* d, int shift);
+
+/*
+ * Add pixel data from the next buffer to the compression input buffer.
+ * - d IDAT callback structure
+ * - shift size of block to shift in bytes
+ */
+static void pngparts_pngwrite_idat_add
+  (struct pngparts_pngwrite_idat* d, int shift);
+
+
 void pngparts_pngwrite_put16clamp16(unsigned char* b, unsigned int w) {
   b[0] = (w>> 8)&255;
   b[1] = (w>> 0)&255;
@@ -432,7 +461,30 @@ struct pngparts_pngwrite_idat {
   /* current and same-line previous pixel data */
   unsigned char nextbuf[16];
   unsigned char filter_byte;
+  /* sieve */
+  struct pngparts_pngwrite_sieve sieve;
+  /* filtered pixel data */
+  unsigned char filtered_buf[16];
 };
+
+void pngparts_pngwrite_filter_finish(struct pngparts_pngwrite_idat* idat){
+  /* post to compressor */
+  (*idat->z.set_input_cb)(idat->z.cb_data, idat->inbuf, idat->insize);
+  /* prepare for the next line */
+  pngparts_pngwrite_line_continue(idat);
+  return;
+}
+
+void pngparts_pngwrite_line_continue(struct pngparts_pngwrite_idat* idat){
+  int const shift_size = (idat->pixel_size+7)/8;
+  /* add the last pixel for the scan line */
+  pngparts_pngwrite_idat_add(idat, shift_size);
+  /* prepare for the next line */{
+    idat->y += 1;
+    idat->filter_mode = -1;
+  }
+  return;
+}
 
 int pngparts_pngwrite_start_line
   (struct pngparts_png* p, struct pngparts_pngwrite_idat* idat)
@@ -709,14 +761,32 @@ int pngparts_pngwrite_generate_chunk
             break;
           }
         }
-        idat->filter_byte = 0;/* choose identity filter for now */
+        if (idat->sieve.filter_cb != NULL){
+          struct pngparts_api_image sieve_img;
+          int result_filter;
+          pngparts_png_get_image_cb(p, &sieve_img);
+          result_filter = (*idat->sieve.filter_cb)
+            ( idat->sieve.cb_data, sieve_img.cb_data, sieve_img.get_cb,
+              idat->line_width, idat->y, idat->level);
+          if (result_filter >= 0 && result_filter <= 4){
+            idat->filter_byte = result_filter;
+          } else {
+            /* report invalid filter type */
+            total_result = PNGPARTS_API_WEIRD_FILTER;
+            break;
+          }
+        } else {
+          idat->filter_byte = 0;/* choose identity filter for now */
+        }
         (*idat->z.set_input_cb)(idat->z.cb_data, &idat->filter_byte, 1);
         idat->filter_mode = idat->filter_byte;
+        idat->x = 0;
+        memset(idat->nextbuf,0,sizeof(idat->nextbuf));
+        idat->inpos = 0;
       }break;
     case 0: /* identity filter */
       {
         int const shift_size = (idat->pixel_size+7)/8;
-        idat->inpos = 0;
         if (shift_size <= 0){
           /* fast quit by */loop_trap = 0;
         } else for (idat->x = 0; idat->x < idat->line_width; ){
@@ -735,15 +805,165 @@ int pngparts_pngwrite_generate_chunk
             pngparts_pngwrite_idat_shift(idat, shift_size);
           }
         }
-        /* add the last pixel for the scan line */
-        pngparts_pngwrite_idat_add(idat, shift_size);
-        /* post to compressor */
-        (*idat->z.set_input_cb)(idat->z.cb_data, idat->inbuf, idat->insize);
         /* prepare for the next line */{
-          idat->y += 1;
-          idat->filter_mode = -1;
+          pngparts_pngwrite_filter_finish(idat);
         }
       }break;
+    case 1: /* subtraction filter */
+      {
+        if (idat->pixel_size <= 0){
+          /* fast quit by */loop_trap = 0;
+        } else if (idat->x < idat->line_width){
+          int const shift_size = (idat->pixel_size+7)/8;
+          int const x_pre = idat->x;
+          /* generate data */{
+            pngparts_pngwrite_idat_fetch(p, idat);
+          }
+          if (idat->x <= x_pre){
+            /*ensure termination by setting */idat->x = x_pre+1;
+          }
+          /* apply the filter */{
+            int sub_i;
+            for (sub_i = 0; sub_i < shift_size; ++sub_i){
+              unsigned char const xmbpp = idat->nextbuf[8-shift_size+sub_i];
+              unsigned char const x = idat->nextbuf[8+sub_i];
+              idat->filtered_buf[sub_i] = ((256u+x-xmbpp)&255u);
+            }
+          }
+          /* set the input buffer */{
+            (*idat->z.set_input_cb)
+              (idat->z.cb_data, &idat->filtered_buf, shift_size);
+          }
+          /* add and shift */{
+            pngparts_pngwrite_idat_add(idat, shift_size);
+            pngparts_pngwrite_idat_shift(idat, shift_size);
+          }
+        }
+        if (idat->x >= idat->line_width){
+          pngparts_pngwrite_line_continue(idat);
+        }
+      }break;
+    case 2: /* upperline filter */
+      {
+        if (idat->pixel_size <= 0){
+          /* fast quit by */loop_trap = 0;
+        } else if (idat->x < idat->line_width){
+          int const shift_size = (idat->pixel_size+7)/8;
+          int const x_pre = idat->x;
+          /* generate data */{
+            pngparts_pngwrite_idat_fetch(p, idat);
+          }
+          if (idat->x <= x_pre){
+            /*ensure termination by setting */idat->x = x_pre+1;
+          }
+          /* apply the filter */{
+            int sub_i;
+            for (sub_i = 0; sub_i < shift_size; ++sub_i){
+              unsigned char const prior = idat->y > 0
+                ? idat->inbuf[idat->inpos+sub_i]
+                : 0u;
+              unsigned char const x = idat->nextbuf[8+sub_i];
+              idat->filtered_buf[sub_i] = ((256u+x-prior)&255u);
+            }
+          }
+          /* set the input buffer */{
+            (*idat->z.set_input_cb)
+              (idat->z.cb_data, &idat->filtered_buf, shift_size);
+          }
+          /* add and shift */{
+            pngparts_pngwrite_idat_add(idat, shift_size);
+            pngparts_pngwrite_idat_shift(idat, shift_size);
+          }
+        }
+        if (idat->x >= idat->line_width){
+          pngparts_pngwrite_line_continue(idat);
+        }
+      }break;
+    case 3: /* average filter */
+      {
+        if (idat->pixel_size <= 0){
+          /* fast quit by */loop_trap = 0;
+        } else if (idat->x < idat->line_width){
+          int const shift_size = (idat->pixel_size+7)/8;
+          int const x_pre = idat->x;
+          /* generate data */{
+            pngparts_pngwrite_idat_fetch(p, idat);
+          }
+          if (idat->x <= x_pre){
+            /*ensure termination by setting */idat->x = x_pre+1;
+          }
+          /* apply the filter */{
+            int sub_i;
+            for (sub_i = 0; sub_i < shift_size; ++sub_i){
+              unsigned char const xmbpp = idat->nextbuf[8-shift_size+sub_i];
+              unsigned char const prior = idat->y > 0
+                ? idat->inbuf[idat->inpos+sub_i]
+                : 0u;
+              unsigned char const x = idat->nextbuf[8+sub_i];
+              unsigned char const avg = ((((unsigned int)xmbpp)+prior)>>1);
+              idat->filtered_buf[sub_i] = ((256u+x-avg)&255u);
+            }
+          }
+          /* set the input buffer */{
+            (*idat->z.set_input_cb)
+              (idat->z.cb_data, &idat->filtered_buf, shift_size);
+          }
+          /* add and shift */{
+            pngparts_pngwrite_idat_add(idat, shift_size);
+            pngparts_pngwrite_idat_shift(idat, shift_size);
+          }
+        }
+        if (idat->x >= idat->line_width){
+          pngparts_pngwrite_line_continue(idat);
+        }
+      }break;
+    case 4: /* Paeth filter */
+      {
+        if (idat->pixel_size <= 0){
+          /* fast quit by */loop_trap = 0;
+        } else if (idat->x < idat->line_width){
+          int const shift_size = (idat->pixel_size+7)/8;
+          int const x_pre = idat->x;
+          /* generate data */{
+            pngparts_pngwrite_idat_fetch(p, idat);
+          }
+          if (idat->x <= x_pre){
+            /*ensure termination by setting */idat->x = x_pre+1;
+          }
+          /* apply the filter */{
+            int sub_i;
+            for (sub_i = 0; sub_i < shift_size; ++sub_i){
+              unsigned char const xmbpp = idat->nextbuf[8-shift_size+sub_i];
+              unsigned char const prior = idat->y > 0
+                ? idat->inbuf[idat->inpos+sub_i]
+                : 0u;
+              unsigned char const priormbpp = ((idat->y > 0) && (x_pre > 0))
+                ? idat->inbuf[idat->inpos-shift_size+sub_i]
+                : 0u;
+              unsigned char const x = idat->nextbuf[8+sub_i];
+              unsigned char const predict =
+                ((unsigned int)pngparts_png_paeth_predict
+                    (xmbpp, prior, priormbpp)
+                  )&255u;
+              idat->filtered_buf[sub_i] = ((256u+x-predict)&255u);
+            }
+          }
+          /* set the input buffer */{
+            (*idat->z.set_input_cb)
+              (idat->z.cb_data, &idat->filtered_buf, shift_size);
+          }
+          /* add and shift */{
+            pngparts_pngwrite_idat_add(idat, shift_size);
+            pngparts_pngwrite_idat_shift(idat, shift_size);
+          }
+        }
+        if (idat->x >= idat->line_width){
+          pngparts_pngwrite_line_continue(idat);
+        }
+      }break;
+    default:
+      total_result = PNGPARTS_API_BAD_STATE;
+      break;
     }
     input_pending = !(*idat->z.input_done_cb)(idat->z.cb_data);
   }
@@ -900,6 +1120,15 @@ int pngparts_pngwrite_idat_msg
     }break;
   case PNGPARTS_PNG_M_DESTROY:
     {
+      /* release the old sieve */{
+        if (idat->sieve.free_cb != NULL){
+          (*idat->sieve.free_cb)(idat->sieve.cb_data);
+        }
+        idat->sieve.cb_data = NULL;
+        idat->sieve.free_cb = NULL;
+        idat->sieve.filter_cb = NULL;
+      }
+      /* take care of self */
       free(idat->outbuf);
       free(idat->inbuf);
       free(idat);
@@ -953,10 +1182,38 @@ int pngparts_pngwrite_assign_idat_api
     ptr->outpos = 0;
     ptr->outlen = 0;
     ptr->filter_mode = -1;
+    ptr->sieve.cb_data = NULL;
+    ptr->sieve.filter_cb = NULL;
+    ptr->sieve.free_cb = NULL;
     cb->cb_data = ptr;
     cb->message_cb = pngparts_pngwrite_idat_msg;
     return PNGPARTS_API_OK;
   }
+}
+
+int pngparts_pngwrite_set_idat_sieve
+  ( struct pngparts_png_chunk_cb* cb,
+    struct pngparts_pngwrite_sieve const* sieve)
+{
+  struct pngparts_pngwrite_idat* idat;
+  unsigned char static const name[4] = { 0x49,0x44,0x41,0x54 };
+  /* check that this is an IDAT chunk callback */{
+    if (memcmp(name, cb->name, 4*sizeof(unsigned char)) != 0
+    ||  cb->message_cb != pngparts_pngwrite_idat_msg)
+    {
+      return PNGPARTS_API_BAD_PARAM;
+    }
+  }
+  idat = (struct pngparts_pngwrite_idat*)cb->cb_data;
+  /* release the old sieve */{
+    if (idat->sieve.free_cb != NULL){
+      (*idat->sieve.free_cb)(idat->sieve.cb_data);
+    }
+  }
+  /* set new sieve */{
+    memcpy(&idat->sieve, sieve, sizeof(struct pngparts_pngwrite_sieve));
+  }
+  return PNGPARTS_API_OK;
 }
 /*END   IDAT*/
 

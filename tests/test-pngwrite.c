@@ -18,6 +18,16 @@
 #include <stdlib.h>
 #include <ctype.h>
 
+
+/* sieve callback structure for the IDAT chunk callback */
+struct test_sieve {
+  int filter_mode;
+};
+static int test_sieve_set(struct pngparts_png_chunk_cb* cb, char const* s);
+static int test_sieve_filter
+  (void* user_data, void* img_data, pngparts_api_image_get_cb img_get_cb,
+    long int width, long int y, int level);
+
 struct test_image {
   int width;
   int height;
@@ -41,6 +51,69 @@ static int test_image_get_text_word
 static int test_file_get_text_word(FILE* img, char* buf, int count);
 static int test_image_get_ppm(struct test_image* img);
 static int test_image_get_alphapgm(struct test_image* img);
+
+
+
+int test_sieve_set(struct pngparts_png_chunk_cb* cb, char const* s){
+  struct test_sieve *data = (struct test_sieve *)malloc
+    (sizeof(struct test_sieve));
+  if (data == NULL)
+    return PNGPARTS_API_MEMORY;
+  else {
+    struct pngparts_pngwrite_sieve sieve_iface;
+    int sieve_res;
+    /* interpret the sieve type */if (s != NULL){
+      if (isdigit(s[0]) || s[0] == '+' || s[0] == '-'){
+        data->filter_mode = atoi(s);
+      } else if (strcmp("none",s) == 0){
+        data->filter_mode = 0;
+      } else if (strcmp("sub",s) == 0){
+        data->filter_mode = 1;
+      } else if (strcmp("up",s) == 0){
+        data->filter_mode = 2;
+      } else if (strcmp("average",s) == 0){
+        data->filter_mode = 3;
+      } else if (strcmp("paeth",s) == 0){
+        data->filter_mode = 4;
+      } else data->filter_mode = -1;
+    } else data->filter_mode = -1;
+    sieve_iface.cb_data = data;
+    sieve_iface.free_cb = &free;
+    sieve_iface.filter_cb = &test_sieve_filter;
+    sieve_res = pngparts_pngwrite_set_idat_sieve(cb, &sieve_iface);
+    if (sieve_res != PNGPARTS_API_OK){
+      free(data);
+    }
+  }
+  return PNGPARTS_API_OK;
+}
+
+int test_sieve_filter
+  (void* user_data, void* img_data, pngparts_api_image_get_cb img_get_cb,
+    long int width, long int y, int level)
+{
+  struct test_sieve *data = (struct test_sieve*)user_data;
+  switch (data->filter_mode){
+  case 0: /* none */
+    return 0;
+    break;
+  case 1: /* sub */
+    return 1;
+    break;
+  case 2: /* up */
+    return 2;
+    break;
+  case 3: /* average */
+    return 3;
+    break;
+  case 4: /* Paeth */
+    return 4;
+    break;
+  default:
+    return 0;
+    break;
+  }
+}
 
 void test_image_describe
   ( void* img_ptr, long int *width, long int *height, short *bit_depth,
@@ -295,6 +368,7 @@ int main(int argc, char**argv) {
   struct pngparts_flate deflater;
   int help_tf = 0;
   int result = 0;
+  char const* sieve_type = NULL;
   struct test_image img = { 0,0,NULL,NULL,0,2,8,NULL };
   {
     int argi;
@@ -323,6 +397,11 @@ int main(int argc, char**argv) {
           argi += 1;
           alpha_fname = argv[argi];
         }
+      } else if (strcmp("-s",argv[argi]) == 0){
+        if (argi+1 < argc){
+          argi += 1;
+          sieve_type = argv[argi];
+        }
       } else if (in_fname == NULL) {
         in_fname = argv[argi];
       } else if (out_fname == NULL) {
@@ -340,6 +419,8 @@ int main(int argc, char**argv) {
         "  -b (depth)         set sample bit depth\n"
         "  -p (file)          read palette file\n"
         "  -a (file)          read alpha channel file\n"
+        "  -s (filter_code)   filter selector (one of none, sub, up,\n"
+        "                       average, paeth)\n"
       );
       return 2;
     }
@@ -393,6 +474,9 @@ int main(int argc, char**argv) {
     pngparts_zwrite_assign_api(&z_api, &zwriter);
     pngparts_z_set_cb(&zwriter, &flate_api);
     pngparts_pngwrite_assign_idat_api(&idat_api, &z_api, 0);
+    if (sieve_type != NULL){
+      test_sieve_set(&idat_api, sieve_type);
+    }
     pngparts_png_add_chunk_cb(&writer, &idat_api);
   }
   /* set PLTE callback */ {
