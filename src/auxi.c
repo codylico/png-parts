@@ -63,8 +63,8 @@ static int pngparts_aux_sieve_adapt
   ( void* user_data, void* img_data, pngparts_api_image_get_cb img_get_cb,
     long int width, long int y, int level);
 
-/* possibly inexact `labs`, okay for heuristics */
-static unsigned long int pngparts_aux_sieve_labs(unsigned long int v);
+/* possibly inexact `abs`, okay for heuristics */
+static unsigned int pngparts_aux_sieve_abs(unsigned long int v);
 
 
 
@@ -353,8 +353,8 @@ void pngparts_aux_image_get_from8
   return;
 }
 
-unsigned long int pngparts_aux_sieve_labs(unsigned long int v) {
-  return v > (LONG_MAX) ? (~v)+1lu : v;
+unsigned int pngparts_aux_sieve_abs(unsigned long int v) {
+  return v > (INT_MAX) ? (~v)+1u : v;
 }
 
 int pngparts_aux_sieve_zero
@@ -372,7 +372,7 @@ int pngparts_aux_sieve_adapt
   long int y_stride;
   unsigned long int const x_end =
     (unsigned long int)(width < 0 ? LONG_MAX : width);
-  unsigned long int filter_sum[5] = {0u};
+  unsigned int filter_sum[5] = {0u};
   /* select the stride */{
     switch (level) {
     case 1: x_start = 0u; x_stride = 8u; y_stride = -8; break;
@@ -442,25 +442,27 @@ int pngparts_aux_sieve_adapt
         filter_sum[3] += (here.alpha - ((left.alpha+up.alpha)>>1));
       }
       /* filter type 4: Paeth */{
-        struct tmp_pixel const predict = {
-            pngparts_png_paeth_predict(left.red,up.red,corner.red),
-            pngparts_png_paeth_predict(left.green,up.green,corner.green),
-            pngparts_png_paeth_predict(left.blue,up.blue,corner.blue),
-            pngparts_png_paeth_predict(left.alpha,up.alpha,corner.alpha)
-          };
-        filter_sum[4] += (here.red - predict.red);
-        filter_sum[4] += (here.green - predict.green);
-        filter_sum[4] += (here.blue - predict.blue);
-        filter_sum[4] += (here.alpha - predict.alpha);
+        unsigned int const predict_red =
+            pngparts_png_paeth_predict(left.red,up.red,corner.red);
+        unsigned int const predict_green =
+            pngparts_png_paeth_predict(left.green,up.green,corner.green);
+        unsigned int const predict_blue =
+            pngparts_png_paeth_predict(left.blue,up.blue,corner.blue);
+        unsigned int const predict_alpha =
+            pngparts_png_paeth_predict(left.alpha,up.alpha,corner.alpha);
+        filter_sum[4] += (here.red - predict_red);
+        filter_sum[4] += (here.green - predict_green);
+        filter_sum[4] += (here.blue - predict_blue);
+        filter_sum[4] += (here.alpha - predict_alpha);
       }
     }
   }
   /* choose the minimum difference */{
     int choice = 0;
-    unsigned long int value = pngparts_aux_sieve_labs(filter_sum[0]);
+    unsigned int value = pngparts_aux_sieve_abs(filter_sum[0]);
     int i;
     for (i = 1; i < 5; ++i) {
-      unsigned long int abssum = pngparts_aux_sieve_labs(filter_sum[i]);
+      unsigned int abssum = pngparts_aux_sieve_abs(filter_sum[i]);
       if (abssum < value) {
         choice = i;
         value = abssum;
