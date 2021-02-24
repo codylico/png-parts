@@ -1,7 +1,7 @@
 /*
  * PNG-parts
  * parts of a Portable Network Graphics implementation
- * Copyright 2018 Cody Licorish
+ * Copyright 2018-2021 Cody Licorish
  *
  * Licensed under the MIT License.
  *
@@ -84,7 +84,7 @@ int pngparts_zread_parse(void *prs_v, int mode){
         result = PNGPARTS_API_LOOPED_STATE;
         break;
       } else trouble_count += 1;
-      /* put dummy character */ ch = -1;
+      /* put dummy character */ ch = -2;
     }
     switch (state){
     case 0:
@@ -111,6 +111,9 @@ int pngparts_zread_parse(void *prs_v, int mode){
             state = 2;
             shortpos = 0;
           }
+        } else if (ch == -2) {
+          /* premature end of stream */
+          result = PNGPARTS_API_EOF;
         }
       }break;
     case 1: /*dictionary id */
@@ -128,16 +131,28 @@ int pngparts_zread_parse(void *prs_v, int mode){
             shortpos = 0;
             state = 2;
           }
+        } else if (ch == -2) {
+          /* premature end of stream */
+          result = PNGPARTS_API_EOF;
         }
       }break;
     case 2: /*data processing callback */
-      {
+      if (ch >= -1) {
         result = (*prs->cb.one_cb)(prs->cb.cb_data,ch,
               prs,&pngparts_zread_put_cb);
         if (result == PNGPARTS_API_DONE){
           state = 3;
           shortpos = 0;
           result = PNGPARTS_API_OK;
+        }
+      } else /*ch == -2*/{
+        /* premature end of stream */
+        /* salvage as much residual data as possible */
+        result = (*prs->cb.finish_cb)(prs->cb.cb_data,
+          prs,&pngparts_zread_put_cb);
+        if (result == PNGPARTS_API_DONE) {
+          /* indicate that `zread` also expected more data
+           * by setting */result = PNGPARTS_API_EOF;
         }
       }break;
     case 3: /* checksum */
@@ -162,6 +177,9 @@ int pngparts_zread_parse(void *prs_v, int mode){
               state = 4;
             }
           }
+        } else if (ch == -2) {
+          /* premature end of stream */
+          result = PNGPARTS_API_EOF;
         }
       }break;
     case 4:

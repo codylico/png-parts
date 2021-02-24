@@ -387,7 +387,8 @@ void pngparts_flate_huff_value_sort(struct pngparts_flate_huff* hf){
 int pngparts_flate_huff_bit_bsearch
   (struct pngparts_flate_huff const* hf, int length, int bits)
 {
-  if (length <= 0 || length > 15) return PNGPARTS_API_BAD_BITS;
+  if (length <= 0 || length > 15)
+    return PNGPARTS_API_BAD_BITS;
   /* sorted */{
     int start = 0;
     int stop = hf->count;
@@ -415,7 +416,8 @@ int pngparts_flate_huff_bit_lsearch
 {
   /* unsorted */
   int i;
-  if (length <= 0 || length > 15) return PNGPARTS_API_BAD_BITS;
+  if (length <= 0 || length > 15)
+    return PNGPARTS_API_BAD_BITS;
   for (i = 0; i < hf->count; ++i){
     if (hf->its[i].length == length
     &&  hf->its[i].bits == bits)

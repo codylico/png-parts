@@ -517,7 +517,7 @@ int pngparts_inflate_one
   (void* data, int ch, void* put_data, int(*put_cb)(void*,int))
 {
   struct pngparts_flate *fl = (struct pngparts_flate *)data;
-  int pos = PNGPARTS_API_OK;
+  int res = PNGPARTS_API_OK;
   int state = fl->state&PNGPARTS_INFLATE_STATE;
   if (state >= 2 && state <= 3){
     int last_block = fl->state&PNGPARTS_INFLATE_LAST;
@@ -537,7 +537,7 @@ int pngparts_inflate_one
           if (fl->shortbuf[0] != fl->shortbuf[2]
           ||  fl->shortbuf[1] != fl->shortbuf[3])
           {
-            pos = PNGPARTS_API_CORRUPT_LENGTH;
+            res = PNGPARTS_API_CORRUPT_LENGTH;
             break;
           } else {
             fl->block_length =
@@ -546,7 +546,7 @@ int pngparts_inflate_one
               state = 3;
             else if (last_block) {
               state = 4;
-              pos = PNGPARTS_API_DONE;
+              res = PNGPARTS_API_DONE;
             } else {
               state = 0;
               fl->bitline = 0;
@@ -558,15 +558,15 @@ int pngparts_inflate_one
     case 3:
       {
         if (fl->block_length > 0){
-          pos = (*put_cb)(put_data,ch);
-          if (pos != PNGPARTS_API_OK){
+          res = (*put_cb)(put_data,ch);
+          if (res != PNGPARTS_API_OK){
             break;
           } else fl->block_length -= 1;
         }
         if (fl->block_length == 0){
           if (last_block) {
             state = 4;
-            pos = PNGPARTS_API_DONE;
+            res = PNGPARTS_API_DONE;
           } else {
             state = 0;
             fl->bitline = 0;
@@ -576,24 +576,24 @@ int pngparts_inflate_one
       }break;
     }
     fl->state = state|last_block;
-    if (pos != PNGPARTS_API_OK) fl->last_input_byte = ch;
-    return pos;
+    if (res != PNGPARTS_API_OK) fl->last_input_byte = ch;
+    return res;
   } else if (ch >= 0)
     fl->bitpos = 0;
   else {
     ch = fl->last_input_byte;
-    pos = pngparts_inflate_bit((ch&(1<<fl->bitpos))|256,fl,put_data,put_cb);
-    if (pos != 0) return pos;
+    res = pngparts_inflate_bit((ch&(1<<fl->bitpos))|256,fl,put_data,put_cb);
+    if (res != 0) return res;
     else fl->bitpos += 1;
   }
   for (; fl->bitpos < 8; ++fl->bitpos){
-    pos = pngparts_inflate_bit(ch&(1<<fl->bitpos),fl,put_data,put_cb);
-    if (pos != 0) break;
+    res = pngparts_inflate_bit(ch&(1<<fl->bitpos),fl,put_data,put_cb);
+    if (res != 0) break;
   }
   if (fl->bitpos < 8){
     fl->last_input_byte = ch;
   }
-  return pos;
+  return res;
 }
 int pngparts_inflate_finish
   (void* data, void* put_data, int(*put_cb)(void*,int))

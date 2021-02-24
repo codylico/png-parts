@@ -67,7 +67,7 @@ for feature requests.
 ## Pull Requests
 Contributions to this repository should follow these guidelines:
 
-- Commit messagess should have a single line at the top (maximum 50
+- Commit messages should have a single line at the top (maximum 50
   characters) that briefly describes the purpose of the commit. The
   second line of the message should be empty. The following lines
   should elaborate on the short description at the top.
