@@ -5,6 +5,33 @@
 #include <assert.h>
 #include <string.h>
 
+
+
+/*
+ * Parent node of Huffman code tree leaf nodes.
+ */
+struct pngparts_flate_parent {
+  /* one child */
+  unsigned short int a;
+  /* another child */
+  unsigned short int b;
+};
+
+struct pngparts_flate_queuenode {
+  /* histogram value */
+  int hist;
+  /* node name */
+  unsigned short int name;
+  /* distance from node to furthest leaf */
+  short int distance;
+};
+
+struct pngparts_flate_queue {
+  struct pngparts_flate_queuenode* nodes;
+  size_t count;
+  size_t cap;
+};
+
 struct pngparts_flate_extra const pngparts_flate_length_table[] = {
   {257,   3,  0}, {258,   4,  0}, {259,   5,  0}, {260,   6,  0},
   {261,   7,  0}, {262,   8,  0}, {263,   9,  0}, {264,  10,  0},
@@ -139,6 +166,43 @@ static int pngparts_flate_code_valuecmp(void const* va, void const* vb);
  * @return x with its bits filled
  */
 static unsigned int pngparts_flate_hash_postfill(unsigned int x);
+/*
+ * Prepare a priority queue.
+ * - q the queue to prepare
+ * - cap capacity
+ * @return MEMORY on failure, OK on success
+ */
+static int pngparts_flate_queue_prepare
+  (struct pngparts_flate_queue* q, unsigned int cap);
+/*
+ * Add a queue node to a priority queue.
+ * - q the queue to target
+ * - n the node to add
+ */
+static void pngparts_flate_queue_add
+  (struct pngparts_flate_queue* q, struct pngparts_flate_queuenode n);
+/*
+ * Remove a queue node from a priority queue.
+ * - q the queue to target
+ * @return the top node
+ */
+static struct pngparts_flate_queuenode pngparts_flate_queue_remove
+  (struct pngparts_flate_queue* q);
+/*
+ * Free out a priority queue.
+ * - q queue
+ */
+static void pngparts_flate_queue_free(struct pngparts_flate_queue* q);
+/*
+ * Generate from histograms the bit lengths, without allocating.
+ * - hf table to modify
+ * - hist relative histogram, size equal to size of table
+ */
+static void pngparts_flate_huff_make_len_v0
+  (struct pngparts_flate_huff* hf, int const* hist);
+
+
+
 
 struct pngparts_flate_code pngparts_flate_code_by_literal(int value){
   struct pngparts_flate_code cd;
@@ -239,7 +303,218 @@ int pngparts_flate_huff_generate(struct pngparts_flate_huff* hf){
 int pngparts_flate_huff_get_size(struct pngparts_flate_huff const* hf){
   return hf->count;
 }
+
+int pngparts_flate_queue_prepare
+  (struct pngparts_flate_queue* q, unsigned int cap)
+{
+  if (cap >= UINT_MAX/sizeof(struct pngparts_flate_queuenode))
+    return PNGPARTS_API_MEMORY;
+  else {
+    struct pngparts_flate_queuenode* nodes =
+      (struct pngparts_flate_queuenode*)malloc
+          (cap*sizeof(struct pngparts_flate_queuenode));
+    if (nodes == NULL) {
+      return PNGPARTS_API_MEMORY;
+    }
+    q->nodes = nodes;
+    q->cap = cap;
+    q->count = 0u;
+    return PNGPARTS_API_OK;
+  }
+}
+void pngparts_flate_queue_add
+  (struct pngparts_flate_queue* q, struct pngparts_flate_queuenode n)
+{
+  assert(q->count < q->cap);
+  q->nodes[q->count] = n;
+  q->count += 1u;
+  /* */{
+    size_t x = q->count;
+    while (x > 1u) {
+      size_t const current = x-1u;
+      size_t const up = (x>>1)-1u;
+      if (q->nodes[up].hist < q->nodes[current].hist) {
+        break;
+      } else {
+        struct pngparts_flate_queuenode const tmp = q->nodes[up];
+        q->nodes[up] = q->nodes[current];
+        q->nodes[current] = tmp;
+        x = up+1u;
+      }
+    }
+  }
+  return;
+}
+
+struct pngparts_flate_queuenode pngparts_flate_queue_remove
+  (struct pngparts_flate_queue* q)
+{
+  struct pngparts_flate_queuenode *const nodes = q->nodes;
+  struct pngparts_flate_queuenode const out = nodes[0];
+  assert(q->count > 0u);
+  q->count -= 1u;
+  nodes[0] = nodes[q->count];
+  /* */{
+    size_t i;
+    size_t const halflen = q->count>>1;
+    for (i = 1u; i <= halflen; ) {
+      size_t const j = i-1u;
+      size_t const b = (i<<1);
+      size_t const a = b-1u;
+      size_t const c = (b<q->count && nodes[b].hist < nodes[a].hist) ? b : a;
+      if (nodes[c].hist < nodes[j].hist) {
+        struct pngparts_flate_queuenode const tmp = nodes[c];
+        nodes[c] = nodes[j];
+        nodes[j] = tmp;
+        i = c+1u;
+      } else break;
+    }
+  }
+  return out;
+}
+void pngparts_flate_queue_free(struct pngparts_flate_queue* q) {
+  free(q->nodes);
+  q->nodes= NULL;
+  return;
+}
+
 void pngparts_flate_huff_make_lengths
+  (struct pngparts_flate_huff* hf, int const* hist)
+{
+  int count = 0;
+  int max_bit_len = 15;
+  struct pngparts_flate_parent *parents = NULL;
+  struct pngparts_flate_queue queue;
+  /* count nonzero items */if (hf->count > 0) {
+    int i;
+    for (i = 0; i < hf->count; ++i){
+      if (hist[i] > 0){
+        count += 1;
+      }
+    }
+    if (count > (1<<max_bit_len)) {
+      /* overflow pending! use old method */
+      pngparts_flate_huff_make_len_v0(hf, hist);
+      return;
+    } else if (count <= 2) {
+      /* shortcut here */
+      int i;
+      for (i = 0; i < hf->count; ++i) {
+        if (hist[i] > 0)
+          hf->its[i].length = 1;
+        else hf->its[i].length = 0;
+      }
+      return;
+    }
+  }
+  /* allocate and calculate */
+  if (count <= INT_MAX/sizeof(struct pngparts_flate_queuenode)) {
+    int res;
+    parents = (struct pngparts_flate_parent*)
+      malloc(count*sizeof(struct pngparts_flate_parent));
+    res = pngparts_flate_queue_prepare(&queue, count);
+    if (res != PNGPARTS_API_OK || parents == NULL) {
+      pngparts_flate_queue_free(&queue);
+      free(parents);
+    }
+  }
+  if (parents == NULL/* || queue.nodes == NULL*/) {
+    /* use non-allocating version */
+    pngparts_flate_huff_make_len_v0(hf, hist);
+    return;
+  } else/* do the algorithm */{
+    unsigned int parent_count = 0;
+    /* phase one: prio queue one */{
+      /* add the entries */{
+        int i;
+        for (i = 0; i < hf->count; ++i) {
+          if (hist[i] > 0) {
+            struct pngparts_flate_queuenode n;
+            n.hist = hist[i];
+            n.name = (unsigned short int)i;
+            n.distance = 0;
+            pngparts_flate_queue_add(&queue, n);
+          }
+        }
+      }
+      /* visit each queue node */{
+        int i;
+        for (i = 0; i < count && queue.count >= 2; ++i) {
+          struct pngparts_flate_queuenode const a =
+            pngparts_flate_queue_remove(&queue);
+          struct pngparts_flate_queuenode const b =
+            pngparts_flate_queue_remove(&queue);
+          struct pngparts_flate_queuenode c;
+          int distance = (a.distance > b.distance)
+            ? a.distance : b.distance;
+          if (distance >= max_bit_len) {
+            /* move to phase two */;
+            pngparts_flate_queue_add(&queue, a);
+            pngparts_flate_queue_add(&queue, b);
+            break;
+          } else {
+            parents[parent_count].a = a.name;
+            parents[parent_count].b = b.name;
+            c.name = parent_count|32768u/* to identify a parent node */;
+            c.hist = (a.hist > INT_MAX-b.hist) ? INT_MAX : a.hist+b.hist;
+            c.distance = (short int)(distance+1);
+            pngparts_flate_queue_add(&queue, c);
+            parent_count += 1u;
+          }
+        }
+      }
+    }
+    /* phase two */if (queue.count >= 2) {
+      /* TODO this */;
+    }
+    /* extract the lengths */{
+      unsigned short int current_node;
+      unsigned short int node_stack[sizeof(short)*CHAR_BIT];
+      unsigned char ab_stack[sizeof(short)*CHAR_BIT];
+      unsigned int stack_i;
+      /* get the name of the root node */{
+        current_node = pngparts_flate_queue_remove(&queue).name;
+      }
+      /* push onto the stack */{
+        node_stack[0] = current_node;
+        ab_stack[0] = 0/* a */;
+        stack_i = 1;
+        current_node = parents[current_node&32767u].a;
+      }
+      /* depth-first traversal */{
+        unsigned int max_iter = ((unsigned int)count)*2u;
+        unsigned int i;
+        for (i = 0u; i < max_iter && stack_i > 0; ++i) {
+          if (current_node&32768u) {
+            /* internal node, descend */
+            assert(stack_i < sizeof(ab_stack));
+            node_stack[stack_i] = current_node;
+            ab_stack[stack_i] = 0;
+            stack_i += 1u;
+            current_node = parents[current_node&32767u].a;
+          } else {
+            /* leaf node */
+            hf->its[current_node].length = (short int)stack_i;
+            /* next node */while (stack_i > 0u && ab_stack[stack_i-1] != 0) {
+              stack_i -= 1u;
+              current_node = node_stack[stack_i];
+            }
+            if (stack_i > 0u) {
+              ab_stack[stack_i-1] = 1;
+              current_node = parents[node_stack[stack_i-1]&32767u].b;
+            }
+          }
+          continue;
+        }
+      }
+    }
+  }
+  pngparts_flate_queue_free(&queue);
+  free(parents);
+  return;
+}
+
+void pngparts_flate_huff_make_len_v0
   (struct pngparts_flate_huff* hf, int const* hist)
 {
   int count = 0;
