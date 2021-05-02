@@ -239,6 +239,15 @@ PNGPARTS_API
 void pngparts_flate_huff_make_lengths
   (struct pngparts_flate_huff* hf, int const* hist);
 /*
+ * Generate from histograms the bit lengths.
+ * - hf table to modify
+ * - hist relative histogram, size equal to size of table
+ * - max_len maximum length for any code
+ */
+PNGPARTS_API
+void pngparts_flate_huff_limit_lengths
+  (struct pngparts_flate_huff* hf, int const* hist, int max_len);
+/*
  * Sort by code bits.
  * - hf table to sort
  */
