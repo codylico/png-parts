@@ -60,6 +60,9 @@ int main(int argc, char **argv){
           mode = 2;
           text_informator = argv[argi];
         }
+      } else if (strcmp(argv[argi],"-vc") == 0){
+        /* variable code: auto (checked) */
+        mode = 6;
       } else if (strcmp(argv[argi],"-m") == 0){
         /* variable code: manual */
         if (++argi < argc){
@@ -87,7 +90,9 @@ int main(int argc, char **argv){
         if (v >= 0){
           srand(v);
         } else {
-          srand(time(NULL));
+          unsigned int seed = (unsigned int)time(NULL);
+          fprintf(stderr, "seed = %u\n", seed);
+          srand(seed);
         }
       } else if (strcmp(argv[argi],"-?") == 0){
         usage_tf = 1;
@@ -95,8 +100,9 @@ int main(int argc, char **argv){
     }
   }
   if (usage_tf || mode == -1){
-    fprintf(stderr,"usage: test_huff (-v ...|-m ...|-h ...|-f|-z)"
+    fprintf(stderr,"usage: test_huff (-v ...|-m ...|-h ...|-f|-z|-vc)"
         " [-s ...] [-q]\n"
+      "  -vc           checked variable code, randomly many numbers\n"
       "  -v (number)   variable code, this many numbers\n"
       "  -m (file)     list of code lengths\n"
       "  -g (file)     histogram of code frequencies\n"
@@ -161,9 +167,10 @@ int main(int argc, char **argv){
       }
     }break;
   case 2: /* automatic variable code */
+  case 6: /* checked variable code */
     {
       int i = 0;
-      int size = atoi(text_informator);
+      int size = (mode == 2) ? atoi(text_informator) : ((rand()%288)+1);
       int *histogram;
       if (size < 0) size = 0;
       else if (size > 288){
@@ -189,6 +196,19 @@ int main(int argc, char **argv){
         pngparts_flate_huff_index_set(&code_table,i,cd);
       }
       pngparts_flate_huff_make_lengths(&code_table, histogram);
+      /* check lengths for nonzero */if (mode == 6) {
+        for (i = 0; i < size; ++i) {
+          struct pngparts_flate_code const cd =
+            pngparts_flate_huff_index_get(&code_table, i);
+          if (histogram[i] > 0) {
+            if (cd.length <= 0)
+              result = PNGPARTS_API_BAD_CODE_LENGTH;
+          } else if (histogram[i] <= 0) {
+            if (cd.length > 0)
+              result = PNGPARTS_API_BAD_PARAM;
+          }
+        }
+      }
       free(histogram);
     }break;
   case 3: /* manual variable code */
