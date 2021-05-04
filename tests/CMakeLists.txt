@@ -64,7 +64,7 @@ if (PNGPARTS_BUILD_TESTING AND BUILD_TESTING)
   add_test(NAME "pngparts_test_huff::ascii"
     COMMAND pngparts_test_huff "-z")
   add_test(NAME "pngparts_test_huff::variable"
-    COMMAND pngparts_test_huff "-vc")
+    COMMAND pngparts_test_huff "-vc" "-s" "-")
   add_test(NAME "pngparts_test_flate::length_encode"
     COMMAND pngparts_test_flate "length_encode" "253")
   add_test(NAME "pngparts_test_flate::length_decode"
