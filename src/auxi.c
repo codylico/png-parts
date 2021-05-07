@@ -63,8 +63,8 @@ static int pngparts_aux_sieve_adapt
   ( void* user_data, void* img_data, pngparts_api_image_get_cb img_get_cb,
     long int width, long int y, int level);
 
-/* possibly inexact `abs`, okay for heuristics */
-static unsigned int pngparts_aux_sieve_abs(unsigned long int v);
+/* byte level `abs`, used for heuristics */
+static unsigned int pngparts_aux_byte_abs(unsigned long int v);
 
 
 
@@ -353,8 +353,9 @@ void pngparts_aux_image_get_from8
   return;
 }
 
-unsigned int pngparts_aux_sieve_abs(unsigned long int v) {
-  return v > (INT_MAX) ? (~v)+1u : v;
+
+unsigned int pngparts_aux_byte_abs(unsigned long int v) {
+  return ((v&128u) ? ((~v)+1u) : v)&255u;
 }
 
 int pngparts_aux_sieve_zero
@@ -418,28 +419,32 @@ int pngparts_aux_sieve_adapt
         here.alpha >>= 8;
       }
       /* filter type 0: None */{
-        filter_sum[0] += here.red;
-        filter_sum[0] += here.green;
-        filter_sum[0] += here.blue;
-        filter_sum[0] += here.alpha;
+        filter_sum[0] += pngparts_aux_byte_abs(here.red);
+        filter_sum[0] += pngparts_aux_byte_abs(here.green);
+        filter_sum[0] += pngparts_aux_byte_abs(here.blue);
+        filter_sum[0] += pngparts_aux_byte_abs(here.alpha);
       }
       /* filter type 1: Sub */{
-        filter_sum[1] += (here.red - left.red);
-        filter_sum[1] += (here.green - left.green);
-        filter_sum[1] += (here.blue - left.blue);
-        filter_sum[1] += (here.alpha - left.alpha);
+        filter_sum[1] += pngparts_aux_byte_abs(here.red - left.red);
+        filter_sum[1] += pngparts_aux_byte_abs(here.green - left.green);
+        filter_sum[1] += pngparts_aux_byte_abs(here.blue - left.blue);
+        filter_sum[1] += pngparts_aux_byte_abs(here.alpha - left.alpha);
       }
       /* filter type 2: Up */{
-        filter_sum[2] += (here.red - up.red);
-        filter_sum[2] += (here.green - up.green);
-        filter_sum[2] += (here.blue - up.blue);
-        filter_sum[2] += (here.alpha - up.alpha);
+        filter_sum[2] += pngparts_aux_byte_abs(here.red - up.red);
+        filter_sum[2] += pngparts_aux_byte_abs(here.green - up.green);
+        filter_sum[2] += pngparts_aux_byte_abs(here.blue - up.blue);
+        filter_sum[2] += pngparts_aux_byte_abs(here.alpha - up.alpha);
       }
       /* filter type 3: Average */{
-        filter_sum[3] += (here.red - ((left.red+up.red)>>1));
-        filter_sum[3] += (here.green - ((left.green+up.green)>>1));
-        filter_sum[3] += (here.blue - ((left.blue+up.blue)>>1));
-        filter_sum[3] += (here.alpha - ((left.alpha+up.alpha)>>1));
+        filter_sum[3] +=
+          pngparts_aux_byte_abs(here.red - ((left.red+up.red)>>1));
+        filter_sum[3] +=
+          pngparts_aux_byte_abs(here.green - ((left.green+up.green)>>1));
+        filter_sum[3] +=
+          pngparts_aux_byte_abs(here.blue - ((left.blue+up.blue)>>1));
+        filter_sum[3] +=
+          pngparts_aux_byte_abs(here.alpha - ((left.alpha+up.alpha)>>1));
       }
       /* filter type 4: Paeth */{
         unsigned int const predict_red =
@@ -450,19 +455,19 @@ int pngparts_aux_sieve_adapt
             pngparts_png_paeth_predict(left.blue,up.blue,corner.blue);
         unsigned int const predict_alpha =
             pngparts_png_paeth_predict(left.alpha,up.alpha,corner.alpha);
-        filter_sum[4] += (here.red - predict_red);
-        filter_sum[4] += (here.green - predict_green);
-        filter_sum[4] += (here.blue - predict_blue);
-        filter_sum[4] += (here.alpha - predict_alpha);
+        filter_sum[4] += pngparts_aux_byte_abs(here.red - predict_red);
+        filter_sum[4] += pngparts_aux_byte_abs(here.green - predict_green);
+        filter_sum[4] += pngparts_aux_byte_abs(here.blue - predict_blue);
+        filter_sum[4] += pngparts_aux_byte_abs(here.alpha - predict_alpha);
       }
     }
   }
   /* choose the minimum difference */{
     int choice = 0;
-    unsigned int value = pngparts_aux_sieve_abs(filter_sum[0]);
+    unsigned int value = (filter_sum[0]);
     int i;
     for (i = 1; i < 5; ++i) {
-      unsigned int abssum = pngparts_aux_sieve_abs(filter_sum[i]);
+      unsigned int abssum = (filter_sum[i]);
       if (abssum < value) {
         choice = i;
         value = abssum;
