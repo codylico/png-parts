@@ -1248,7 +1248,7 @@ int pngparts_deflate_fashion_alphabet(struct pngparts_flate *fl){
         alphabet_maximum = i + 1;
       }
     }
-    pngparts_flate_huff_make_lengths(&fl->code_table, swizzled_hist);
+    pngparts_flate_huff_limit_lengths(&fl->code_table, swizzled_hist, 7);
     result = PNGPARTS_API_OK;
     fl->alphabet[2] = alphabet_maximum-4;
   }

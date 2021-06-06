@@ -5,6 +5,50 @@
 #include <assert.h>
 #include <string.h>
 
+
+
+/*
+ * Reference information for Huffman code table items.
+ */
+struct pngparts_flate_presort {
+  /* code table array index */
+  int i;
+  /* histogram value */
+  int hist;
+};
+
+struct pngparts_flate_queuenode {
+  /* histogram value */
+  int hist;
+  /* node count at the mid height */
+  unsigned int mid_count;
+  /* sum of widths in the package */
+  unsigned long int width;
+  /* sum of widths over the mid height */
+  unsigned long int high_width;
+};
+
+struct pngparts_flate_lenlevel {
+  /* lowest height value */
+  unsigned char low;
+  /* highest height value */
+  unsigned char high;
+  /* first presort index */
+  unsigned short first_presort;
+  /* last presort index */
+  unsigned short last_presort;
+  /* target width */
+  unsigned long int target;
+  /* current solution */
+  struct pngparts_flate_queuenode end;
+};
+
+struct pngparts_flate_queue {
+  struct pngparts_flate_queuenode* nodes;
+  unsigned int count;
+  unsigned int cap;
+};
+
 struct pngparts_flate_extra const pngparts_flate_length_table[] = {
   {257,   3,  0}, {258,   4,  0}, {259,   5,  0}, {260,   6,  0},
   {261,   7,  0}, {262,   8,  0}, {263,   9,  0}, {264,  10,  0},
@@ -139,6 +183,74 @@ static int pngparts_flate_code_valuecmp(void const* va, void const* vb);
  * @return x with its bits filled
  */
 static unsigned int pngparts_flate_hash_postfill(unsigned int x);
+/*
+ * Prepare a priority queue.
+ * - q the queue to prepare
+ * - cap capacity
+ * @return MEMORY on failure, OK on success
+ */
+static int pngparts_flate_queue_prepare
+  (struct pngparts_flate_queue* q, unsigned int cap);
+/*
+ * Add a queue node to a priority queue.
+ * - q the queue to target
+ * - n the node to add
+ */
+static void pngparts_flate_queue_add
+  (struct pngparts_flate_queue* q, struct pngparts_flate_queuenode n);
+/*
+ * Add two queue nodes together.
+ * - a the node to add
+ * - b the node to add
+ * @return the sum node
+ */
+static struct pngparts_flate_queuenode pngparts_flate_queue_pack
+  (struct pngparts_flate_queuenode a, struct pngparts_flate_queuenode b);
+/*
+ * Remove a queue node from a priority queue.
+ * - q the queue to target
+ * @return the top node
+ */
+static struct pngparts_flate_queuenode pngparts_flate_queue_remove
+  (struct pngparts_flate_queue* q);
+/*
+ * Free out a priority queue.
+ * - q queue
+ */
+static void pngparts_flate_queue_free(struct pngparts_flate_queue* q);
+/*
+ * Generate from histograms the bit lengths, without allocating.
+ * - hf table to modify
+ * - hist relative histogram, size equal to size of table
+ */
+static void pngparts_flate_huff_make_len_v0
+  (struct pngparts_flate_huff* hf, int const* hist);
+
+
+/*
+ * Compare two queue nodes.
+ * - a one node
+ * - b another node
+ * @return -1 for <, +1 for >, 0 for =
+ */
+static int pngparts_flate_queue_cmp
+  (struct pngparts_flate_queuenode a, struct pngparts_flate_queuenode b);
+
+/*
+ * Compare two presort values.
+ * - a one presort value
+ * - b another presort value
+ * @return -1 for <, +1 for >, 0 for =
+ */
+static int pngparts_flate_presort_cmp(void const *a, void const* b);
+/*
+ * Find the smallest bit in a number.
+ * - x bit set
+ * @return a new bit set with only the lowest bit set in `x`
+ */
+static unsigned long int pngparts_flate_minwidth(unsigned long int x);
+
+
 
 struct pngparts_flate_code pngparts_flate_code_by_literal(int value){
   struct pngparts_flate_code cd;
@@ -239,7 +351,369 @@ int pngparts_flate_huff_generate(struct pngparts_flate_huff* hf){
 int pngparts_flate_huff_get_size(struct pngparts_flate_huff const* hf){
   return hf->count;
 }
+
+int pngparts_flate_queue_prepare
+  (struct pngparts_flate_queue* q, unsigned int cap)
+{
+  q->nodes = NULL;
+  q->cap = 0u;
+  q->count = 0u;
+  if (cap >= UINT_MAX/sizeof(struct pngparts_flate_queuenode))
+    return PNGPARTS_API_MEMORY;
+  else {
+    struct pngparts_flate_queuenode* nodes =
+      (struct pngparts_flate_queuenode*)malloc
+          (cap*sizeof(struct pngparts_flate_queuenode));
+    if (nodes == NULL) {
+      return PNGPARTS_API_MEMORY;
+    }
+    q->nodes = nodes;
+    q->cap = cap;
+    q->count = 0u;
+    return PNGPARTS_API_OK;
+  }
+}
+int pngparts_flate_queue_cmp
+  (struct pngparts_flate_queuenode a, struct pngparts_flate_queuenode b)
+{
+  if (a.width < b.width)
+    return -1;
+  else if (b.width < a.width)
+    return +1;
+  else if (a.hist < b.hist)
+    return -1;
+  else if (b.hist < a.hist)
+    return +1;
+  else return 0;
+}
+void pngparts_flate_queue_add
+  (struct pngparts_flate_queue* q, struct pngparts_flate_queuenode n)
+{
+  assert(q->count < q->cap);
+  q->nodes[q->count] = n;
+  q->count += 1u;
+  /* */{
+    unsigned int x = q->count;
+    while (x > 1u) {
+      unsigned int const current = x-1u;
+      unsigned int const up = (x>>1)-1u;
+      if (pngparts_flate_queue_cmp(q->nodes[up], q->nodes[current]) < 0) {
+        break;
+      } else {
+        struct pngparts_flate_queuenode const tmp = q->nodes[up];
+        q->nodes[up] = q->nodes[current];
+        q->nodes[current] = tmp;
+        x = up+1u;
+      }
+    }
+  }
+  return;
+}
+struct pngparts_flate_queuenode pngparts_flate_queue_pack
+  (struct pngparts_flate_queuenode a, struct pngparts_flate_queuenode b)
+{
+  struct pngparts_flate_queuenode out;
+  out.hist = (a.hist > INT_MAX-b.hist) ? INT_MAX : (a.hist + b.hist);
+  out.mid_count = a.mid_count + b.mid_count;
+  out.width = a.width + b.width;
+  out.high_width = a.high_width + b.high_width;
+  return out;
+}
+
+struct pngparts_flate_queuenode pngparts_flate_queue_remove
+  (struct pngparts_flate_queue* q)
+{
+  struct pngparts_flate_queuenode *const nodes = q->nodes;
+  struct pngparts_flate_queuenode const out = nodes[0];
+  assert(q->count > 0u);
+  q->count -= 1u;
+  nodes[0] = nodes[q->count];
+  /* */{
+    unsigned int i;
+    unsigned int const halflen = q->count>>1;
+    for (i = 1u; i <= halflen; ) {
+      unsigned int const j = i-1u;
+      unsigned int const b = (i<<1);
+      unsigned int const a = b-1u;
+      unsigned int const c =
+          (b<q->count && pngparts_flate_queue_cmp(nodes[b], nodes[a])<0)
+        ? b : a;
+      if (pngparts_flate_queue_cmp(nodes[c], nodes[j]) < 0) {
+        struct pngparts_flate_queuenode const tmp = nodes[c];
+        nodes[c] = nodes[j];
+        nodes[j] = tmp;
+        i = c+1u;
+      } else break;
+    }
+  }
+  return out;
+}
+
+void pngparts_flate_queue_free(struct pngparts_flate_queue* q) {
+  free(q->nodes);
+  q->nodes= NULL;
+  return;
+}
+
+
+unsigned long int pngparts_flate_minwidth(unsigned long int x) {
+  unsigned int count = 1u;
+  for (count = 1u; count != 0u; count<<=1) {
+    if (x & count)
+      return count;
+  }
+  return 0u;
+}
+
+int pngparts_flate_presort_cmp(void const *va, void const* vb) {
+  struct pngparts_flate_presort const* a =
+    (struct pngparts_flate_presort const*)va;
+  struct pngparts_flate_presort const* b =
+    (struct pngparts_flate_presort const*)vb;
+  if (a->hist > b->hist)
+    return -1;
+  else if (a->hist < b->hist)
+    return +1;
+  else return 0;
+}
+
 void pngparts_flate_huff_make_lengths
+  (struct pngparts_flate_huff* hf, int const* hist)
+{
+  pngparts_flate_huff_limit_lengths(hf, hist, 15);
+}
+
+void pngparts_flate_huff_limit_lengths
+  (struct pngparts_flate_huff* hf, int const* hist, int maxlen)
+{
+  /*
+   * Citation:
+   * L. Larmore and D. Hirschberg (1990)
+   *   "A Fast Algorithm for Optimal Length-Limited Huffman Codes" in
+   *   Journal of the ACM, 37(3), pp. 464-473
+   */
+  int count = 0;
+  int max_bit_len = (maxlen < 0 ? 15 : maxlen);
+  struct pngparts_flate_presort *presort = NULL;
+  struct pngparts_flate_queue queue;
+  if (max_bit_len > 15) {
+    pngparts_flate_huff_make_len_v0(hf, hist);
+    return;
+  } else/* count nonzero items */if (hf->count > 0) {
+    int i;
+    for (i = 0; i < hf->count; ++i){
+      if (hist[i] > 0){
+        count += 1;
+      } else hf->its[i].length = 0;
+    }
+    if (count > (1L<<max_bit_len)) {
+      /* overflow pending! use old method */
+      pngparts_flate_huff_make_len_v0(hf, hist);
+      return;
+    } else if (count <= 2) {
+      /* shortcut here */
+      int i;
+      for (i = 0; i < hf->count; ++i) {
+        if (hist[i] > 0)
+          hf->its[i].length = 1;
+        else hf->its[i].length = 0;
+      }
+      return;
+    }
+  }
+  /* allocate and calculate */
+  if (count <= (INT_MAX>>1)/sizeof(struct pngparts_flate_queuenode)) {
+    int res;
+    presort = (struct pngparts_flate_presort*)
+      malloc(count*sizeof(struct pngparts_flate_presort));
+    res = pngparts_flate_queue_prepare
+      (&queue, ((unsigned int)count)*2u);
+    if (res != PNGPARTS_API_OK ||  presort == NULL) {
+      pngparts_flate_queue_free(&queue);
+      free(presort);
+      presort = NULL;
+    }
+  }
+  if (presort == NULL/* || queue.nodes == NULL*/) {
+    /* use non-allocating version (different algorithm) */
+    pngparts_flate_huff_make_len_v0(hf, hist);
+    return;
+  } else/* do the algorithm */{
+    struct pngparts_flate_lenlevel levels[16];
+    size_t current_level = 0u;
+    size_t stored_levels = 1u;
+    memset(levels, 0, sizeof(levels));
+    levels[0].last_presort = (unsigned short)count;
+    levels[0].low = 1;
+    levels[0].high = (unsigned char)max_bit_len;
+    levels[0].target = (((unsigned long int)count-1u)<<max_bit_len);
+    /* add the entries */{
+      int i;
+      int presort_index = 0;
+      for (i = 0; i < hf->count; ++i) {
+        if (hist[i] > 0) {
+          presort[presort_index].i = i;
+          presort[presort_index].hist = hist[i];
+          presort_index += 1;
+        } else continue;
+      }
+      assert(presort_index == count);
+      qsort(presort, (size_t)count, sizeof(struct pngparts_flate_presort),
+          pngparts_flate_presort_cmp);
+    }
+    for (current_level = 0u; current_level < stored_levels; ++current_level) {
+      unsigned int const low_height = levels[current_level].low;
+      unsigned int const high_height = levels[current_level].high;
+      unsigned int height = high_height-low_height;
+      int const mid_height = (int)(low_height + (height+1u)/2u);
+      unsigned int target_m1 = levels[current_level].target;
+      int j = (int)(high_height+1u);
+      int const first_presort = levels[current_level].first_presort;
+      int const last_presort = levels[current_level].last_presort;
+      if (high_height <= low_height)
+        /* done, so */continue;
+      queue.count = 0;
+      while (target_m1 > 0u) {
+        unsigned long int const min_width = pngparts_flate_minwidth(target_m1);
+        unsigned long int r;
+        int yes = 1;
+        j -= 1u;
+        r = 1ul<<(max_bit_len-j); /* "2**0" = 1<<15, "2**(-height)" = 1<<0 */
+        if (j >= (int)low_height)/* then add the entries */{
+          int i;
+          for (i = first_presort; i < last_presort; ++i) {
+            struct pngparts_flate_queuenode n;
+            n.hist = presort[i].hist;
+            n.width = r;
+            n.high_width = (j > mid_height ? r : 0u);
+            n.mid_count = (j == mid_height ? 1u : 0u);
+            pngparts_flate_queue_add(&queue, n);
+          }
+        }
+        if (queue.count == 0 || r > min_width) {
+          yes = 0;
+        } else if (r == min_width) {
+          struct pngparts_flate_queuenode const n =
+            pngparts_flate_queue_remove(&queue);
+          if (n.width != r)
+            yes = 0;
+          else {
+            target_m1 -= min_width;
+            levels[current_level].end =
+              pngparts_flate_queue_pack(levels[current_level].end, n);
+          }
+        }
+        if (!yes) {
+          pngparts_flate_queue_free(&queue);
+          free(presort);
+          /* use non-allocating version (different algorithm) */
+          pngparts_flate_huff_make_len_v0(hf, hist);
+          return;
+        }
+        /* visit each queue node */{
+          int i;
+          for (i = 0; i < count && queue.count >= 2; ++i) {
+            struct pngparts_flate_queuenode const a =
+              pngparts_flate_queue_remove(&queue);
+            struct pngparts_flate_queuenode const b =
+              pngparts_flate_queue_remove(&queue);
+            if (b.width > r) {
+              /* this pass is over; quit */
+              if (a.width > r)
+                pngparts_flate_queue_add(&queue, a);
+              pngparts_flate_queue_add(&queue, b);
+              break;
+            } else {
+              struct pngparts_flate_queuenode const c =
+                pngparts_flate_queue_pack(a, b);
+              pngparts_flate_queue_add(&queue, c);
+            }
+          }
+        }
+      }
+      /* process the end */if (height >= 3) {
+        /* subdivide */;
+        assert(stored_levels < 14);
+        /* first subdivision ("D") */{
+          levels[stored_levels].target = levels[current_level].end.high_width;
+          levels[stored_levels].low = mid_height+1u;
+          levels[stored_levels].high = high_height;
+          levels[stored_levels].last_presort =
+            levels[current_level].last_presort;
+          levels[stored_levels].first_presort =
+              levels[current_level].last_presort
+            - levels[current_level].end.mid_count;
+          stored_levels += 1;
+        }
+        /* second subdivision ("A") */if (low_height < mid_height){
+          levels[stored_levels].target =
+              levels[current_level].end.width /*S*/
+            - levels[current_level].end.high_width /*D*/
+            -   ( (1ul<<(max_bit_len-low_height+1))
+                - (1ul<<(max_bit_len-mid_height)))
+              * levels[current_level].end.mid_count /* B + C */;
+          levels[stored_levels].low = low_height;
+          levels[stored_levels].high = mid_height-1u;
+          levels[stored_levels].first_presort =
+            levels[current_level].first_presort;
+          levels[stored_levels].last_presort =
+              levels[current_level].last_presort
+            - levels[current_level].end.mid_count;
+          stored_levels += 1;
+        }
+      } else {
+        /* nothing more to do */;
+      }
+      continue;
+    }
+    /* reconstruct the lengths */{
+      unsigned short linelengths[16];
+      size_t check_level;
+      memset(linelengths, 0, sizeof(linelengths));
+      for (check_level = 0u; check_level < stored_levels; ++check_level) {
+        unsigned int const adjust =
+          ((unsigned int)count-levels[check_level].last_presort);
+        unsigned int const low_height =  levels[check_level].low;
+        unsigned int const high_height = levels[check_level].high;
+        unsigned int height = high_height-low_height;
+        int const mid_height = (int)(low_height + (height+1u)/2u);
+        unsigned int const mid_count = levels[check_level].end.mid_count;
+        linelengths[mid_height] = mid_count + adjust;
+        if (height <= 2u) {
+          unsigned long int const low_width =
+              levels[check_level].end.width
+            - (((unsigned long int)mid_count)<<(max_bit_len-mid_height))
+            - levels[check_level].end.high_width;
+          if (mid_height < high_height) {
+            int const high_shift = max_bit_len-high_height;
+            unsigned int const high_count =
+              levels[check_level].end.high_width>>high_shift;
+            linelengths[high_height] = high_count + adjust;
+          }
+          if (low_height < mid_height)
+            linelengths[low_height] =
+              (low_width>>(max_bit_len-low_height)) + adjust;
+        }
+      }
+      /* apply the lengths */{
+        int i = count;
+        int j;
+        for (j = 15; j > 0; --j) {
+          int const back_count = count - (int)linelengths[j];
+          for (; i > back_count; i--) {
+            int const name = presort[i-1].i;
+            hf->its[name].length = j;
+          }
+        }
+      }
+    }/* */
+  }
+  pngparts_flate_queue_free(&queue);
+  free(presort);
+  return;
+}
+
+void pngparts_flate_huff_make_len_v0
   (struct pngparts_flate_huff* hf, int const* hist)
 {
   int count = 0;
