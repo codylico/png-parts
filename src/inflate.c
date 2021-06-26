@@ -561,7 +561,10 @@ int pngparts_inflate_one
           res = (*put_cb)(put_data,ch);
           if (res != PNGPARTS_API_OK){
             break;
-          } else fl->block_length -= 1;
+          } else {
+            fl->block_length -= 1;
+            pngparts_flate_history_add(fl,ch);
+          }
         }
         if (fl->block_length == 0){
           if (last_block) {
