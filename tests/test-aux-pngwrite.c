@@ -84,6 +84,14 @@ int test_file_get_text_word(FILE* fptr, char* buf, int count){
 int test_image_get_ppm(struct test_image* img) {
   int x, y;
   char word_buf[32];
+  int pixel_size;
+  /* determine pixel size */
+  switch (img->color_type&6u) {
+    case PNGPARTS_AUX_L: pixel_size = 1; break;
+    case PNGPARTS_AUX_RGB: pixel_size = 3; break;
+    case PNGPARTS_AUX_LA: pixel_size = 2; break;
+    case PNGPARTS_AUX_RGBA: pixel_size = 4; break;
+  }
   if (test_image_get_text_word(img, word_buf, sizeof(word_buf)) <= 0){
     return PNGPARTS_API_IO_ERROR;
   } else if (strcmp("P3", word_buf) == 0){
@@ -111,7 +119,8 @@ int test_image_get_ppm(struct test_image* img) {
     }
     for (y = 0; y < height; ++y) {
       for (x = 0; x < width; ++x) {
-        unsigned char *const pixel = (&img->bytes[(y*img->width + x) * 4]);
+        unsigned char *const pixel =
+          (&img->bytes[(y*img->width + x) * pixel_size]);
         int red, green, blue, alpha = max_value;
         /* read */
         if (test_image_get_text_word(img, word_buf, sizeof(word_buf)) <= 0){
@@ -126,11 +135,21 @@ int test_image_get_ppm(struct test_image* img) {
           return PNGPARTS_API_IO_ERROR;
         }
         blue = atoi(word_buf);
-        /* put */
-        pixel[0] = red*255/max_value;
-        pixel[1] = green*255/max_value;
-        pixel[2] = blue*255/max_value;
-        pixel[3] = alpha*255/max_value;
+        /* put */switch (pixel_size) {
+        case 2:
+          pixel[1] = alpha*255/max_value;
+        case 1:
+          pixel[0] = red*255/max_value;
+          break;
+        case 4:
+          pixel[3] = alpha*255/max_value;
+          /*[[fallthrough]]*/;
+        case 3:
+          pixel[0] = red*255/max_value;
+          pixel[1] = green*255/max_value;
+          pixel[2] = blue*255/max_value;
+          break;
+        }
       }
     }
   } else {
@@ -142,6 +161,18 @@ int test_image_get_ppm(struct test_image* img) {
 int test_image_get_alphapgm(struct test_image* img) {
   int x, y;
   char word_buf[32];
+  int pixel_size;
+  int alpha_index;
+  /* determine pixel size */
+  switch (img->color_type) {
+    case PNGPARTS_AUX_L:
+    case PNGPARTS_AUX_RGB:
+      fprintf(stderr, "Ignoring alpha channel image for color type %i.\n",
+          img->color_type);
+      /* alpha unused, so */return PNGPARTS_API_OK;
+    case PNGPARTS_AUX_LA: pixel_size = 2;alpha_index = 1; break;
+    case PNGPARTS_AUX_RGBA: pixel_size = 4;alpha_index = 3; break;
+  }
   if (test_file_get_text_word
       (img->alpha_fptr, word_buf, sizeof(word_buf)) <= 0)
   {
@@ -177,7 +208,8 @@ int test_image_get_alphapgm(struct test_image* img) {
     }
     for (y = 0; y < height; ++y) {
       for (x = 0; x < width; ++x) {
-        unsigned char *const pixel = (&img->bytes[(y*img->width + x) * 4]);
+        unsigned char *const pixel =
+          (&img->bytes[(y*img->width + x) * pixel_size]);
         int alpha;
         /* read */
         if (test_file_get_text_word
@@ -187,7 +219,7 @@ int test_image_get_alphapgm(struct test_image* img) {
         }
         alpha = atoi(word_buf);
         /* put */
-        pixel[3] = alpha*255/max_value;
+        pixel[alpha_index] = alpha*255/max_value;
       }
     }
   } else {
@@ -217,7 +249,7 @@ int main(int argc, char**argv) {
       } else if (strcmp(argv[argi], "-c") == 0) {
         if (argi + 1 < argc){
           argi += 1;
-          img.color_type = atoi(argv[argi]);
+          img.color_type = ((unsigned int)atoi(argv[argi])&6u);
         }
       } else if (strcmp(argv[argi], "-i") == 0) {
         img.interlace_tf = 1;
@@ -302,7 +334,7 @@ int main(int argc, char**argv) {
   }
 
   result = pngparts_aux_write_block
-    (img.width, img.height, 0, 0, PNGPARTS_AUX_RGBA, 8, img.bytes, out_fname);
+    (img.width, img.height, 0, 0, img.color_type, 8, img.bytes, out_fname);
   /* close */
   free(img.bytes);
   if (to_read != stdin) fclose(to_read);
