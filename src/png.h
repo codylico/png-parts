@@ -1,7 +1,7 @@
 /*
  * PNG-parts
  * parts of a Portable Network Graphics implementation
- * Copyright 2018-2019 Cody Licorish
+ * Copyright 2018-2021 Cody Licorish
  *
  * Licensed under the MIT License.
  *
@@ -79,7 +79,13 @@ enum pngparts_png_message_type {
   /* At end of stream */
   PNGPARTS_PNG_M_ALL_DONE = 6,
   /* Destructor */
-  PNGPARTS_PNG_M_DESTROY = 7
+  PNGPARTS_PNG_M_DESTROY = 7,
+  /* Query or configure the tRNS single-alpha color value
+   * - byte nonzero in write mode, zero in read mode
+   * - ptr array of three `unsigned short` to transfer the
+   *       color value
+   */
+  PNGPARTS_PNG_M_tRNS_VALUE = 8
 };
 /*
  * Chunk callback message.

@@ -7,6 +7,7 @@
 #include "zread.h"
 #include "inflate.h"
 #include "deflate.h"
+#include "trns.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -141,6 +142,25 @@ int pngparts_aux_read_png_16
           if (add_plte_result != PNGPARTS_API_OK){
             /* destroy the PLTE callback */
             pngparts_aux_destroy_png_chunk(&plte_api);
+            break;
+          }
+        }
+      }
+      /* set tRNS callback */ {
+        struct pngparts_png_chunk_cb trns_api;
+        /* assign tRNS callback */{
+          int const trns_result =
+            pngparts_trns_assign_read_api(&trns_api);
+          if (trns_result != PNGPARTS_API_OK){
+            break;
+          }
+        }
+        /* add tRNS callback */{
+          int const add_trns_result =
+            pngparts_png_add_chunk_cb(&parser, &trns_api);
+          if (add_trns_result != PNGPARTS_API_OK){
+            /* destroy the tRNS callback */
+            pngparts_aux_destroy_png_chunk(&trns_api);
             break;
           }
         }

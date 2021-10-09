@@ -18,6 +18,7 @@ set(pngparts_src
   zwrite.c zwrite.h
   deflate.c deflate.h
   pngwrite.c pngwrite.h
+  trns.c trns.h
   )
 if (PNGPARTS_INCLUDE_AUX)
   list(APPEND pngparts_src auxi.c auxi.h)

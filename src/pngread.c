@@ -1,7 +1,7 @@
 /*
  * PNG-parts
  * parts of a Portable Network Graphics implementation
- * Copyright 2018-2019 Cody Licorish
+ * Copyright 2018-2021 Cody Licorish
  *
  * Licensed under the MIT License.
  *
@@ -388,7 +388,9 @@ struct pngparts_pngread_idat {
   unsigned long int outsize;
   unsigned long int outpos;
   int filter_mode;
+  unsigned char trns_flag;
   unsigned long int byte_count;
+  unsigned short trns_color[3];
 };
 static int pngparts_pngread_start_line
   (struct pngparts_png*, struct pngparts_pngread_idat*);
@@ -408,6 +410,8 @@ void pngparts_pngread_idat_submit
   static const int multiplier[9] =
     { 0, 0xffff, 0x5555, 0x2492, 0x1111, 0, 0, 0, 0x0101 };
   struct pngparts_api_image img;
+  unsigned short const* const trns_color = idat->trns_color;
+  unsigned char const trns_flag = idat->trns_flag;
   pngparts_png_get_image_cb(p, &img);
   switch (idat->pixel_size) {
   case 1: /* either L/1 or index/1 */
@@ -428,7 +432,8 @@ void pngparts_pngread_idat_submit
             {
               unsigned int const lumin
                 = bit_string*multiplier[idat->pixel_size];
-              (*img.put_cb)(img.cb_data, nx, ny, lumin, lumin, lumin, 65535);
+              (*img.put_cb)(img.cb_data, nx, ny, lumin, lumin, lumin,
+                  (trns_flag&&bit_string==trns_color[0])?0:65535);
             }break;
           case 3: /* index/i */
             {
@@ -461,7 +466,8 @@ void pngparts_pngread_idat_submit
           {
             unsigned int lumin;
             lumin = (idat->nextbuf[8] << 8) | (idat->nextbuf[9]);
-            (*img.put_cb)(img.cb_data, nx, ny, lumin, lumin, lumin, 65535);
+            (*img.put_cb)(img.cb_data, nx, ny, lumin, lumin, lumin,
+                (trns_flag&&lumin==trns_color[0])?0:65535);
           }break;
         case 4: /* LA/8 */
           {
@@ -482,10 +488,15 @@ void pngparts_pngread_idat_submit
       pngparts_png_adam7_reverse_xy(idat->level, &nx, &ny, idat->x, idat->y);
       if (nx < p->header.width) {
         unsigned int red, green, blue;
+        unsigned char const set_zero_flag =
+              idat->nextbuf[8] == trns_color[0]
+          &&  idat->nextbuf[9] == trns_color[1]
+          &&  idat->nextbuf[10] == trns_color[2];
         red = (idat->nextbuf[8] << 8) | (idat->nextbuf[8]);
         green = (idat->nextbuf[9] << 8) | (idat->nextbuf[9]);
         blue = (idat->nextbuf[10] << 8) | (idat->nextbuf[10]);
-        (*img.put_cb)(img.cb_data, nx, ny, red, green, blue, 65535);
+        (*img.put_cb)(img.cb_data, nx, ny, red, green, blue,
+            (trns_flag&&set_zero_flag)?0:65535);
       }
       pngparts_pngread_idat_add(idat, 3);
       pngparts_pngread_idat_shift(idat, 3);
@@ -528,7 +539,12 @@ void pngparts_pngread_idat_submit
         red   = (idat->nextbuf[ 8] << 8) | (idat->nextbuf[ 9]);
         green = (idat->nextbuf[10] << 8) | (idat->nextbuf[11]);
         blue  = (idat->nextbuf[12] << 8) | (idat->nextbuf[13]);
-        (*img.put_cb)(img.cb_data, nx, ny, red, green, blue, 65535);
+        (*img.put_cb)(img.cb_data, nx, ny, red, green, blue,
+            (trns_flag
+            &&  red == trns_color[0]
+            &&  green == trns_color[1]
+            &&  blue == trns_color[2]
+            )?0:65535);
       }
       pngparts_pngread_idat_add(idat, 6);
       pngparts_pngread_idat_shift(idat, 6);
@@ -634,8 +650,10 @@ int pngparts_pngread_idat_msg
           break;
         }
         /* compute the sample size in bytes */ {
+          int trns_should_check = 0;
           switch (p->header.color_type) {
           case 0: /* gray */
+            trns_should_check = 1;
           case 3: /* palette */
             idat->pixel_size = p->header.bit_depth;
             break;
@@ -643,11 +661,28 @@ int pngparts_pngread_idat_msg
             idat->pixel_size = p->header.bit_depth * 2;
             break;
           case 2: /* red green blue*/
+            trns_should_check = 1;
             idat->pixel_size = p->header.bit_depth * 3;
             break;
           case 6: /* red green blue alpha*/
             idat->pixel_size = p->header.bit_depth * 4;
             break;
+          }
+          if (trns_should_check) {
+            unsigned short trns_color[3];
+            struct pngparts_png_message trns_msg =
+              { PNGPARTS_PNG_M_tRNS_VALUE, 0, {0x74,0x52,0x4E,0x53} };
+            struct pngparts_png_chunk_cb const* const trns_cb =
+              pngparts_png_find_chunk_cb(p, trns_msg.name);
+            trns_msg.ptr = trns_color;
+            if (trns_cb != NULL) {
+              int const trns_res =
+                pngparts_png_send_chunk_msg(p, trns_cb, &trns_msg);
+              if (trns_res == PNGPARTS_API_OK) {
+                memcpy(idat->trns_color, trns_color, 3*sizeof(unsigned short));
+                idat->trns_flag = 1;
+              }
+            }
           }
         }
         /* prepare the line */{
@@ -875,6 +910,8 @@ int pngparts_pngread_assign_idat_api
     ptr->outsize = 0;
     ptr->outpos = 0;
     ptr->filter_mode = -2;
+    ptr->trns_flag = 0;
+    memset(ptr->trns_color, 0, 3*sizeof(unsigned short));
     cb->cb_data = ptr;
     cb->message_cb = pngparts_pngread_idat_msg;
     return PNGPARTS_API_OK;
